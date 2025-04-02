@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Lottie from 'lottie-react';
+import noDataAnimation from '/public/lottie/no data.json';
 import { 
   Container, 
   Grid, 
@@ -137,7 +139,13 @@ const Favorites = () => {
     return (
       <Container maxWidth="lg" sx={{ py: 8, pt: '200px' }}>
         <Box textAlign="center" py={8}>
-          <FavoriteIcon sx={{ fontSize: 60, color: '#888', mb: 2 }} />
+          <Box sx={{ width: '250px', height: '250px', mx: 'auto', mb: 2 }}>
+            <Lottie 
+              animationData={noDataAnimation} 
+              loop={true}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </Box>
           <Typography variant="h5" gutterBottom>
             Your wishlist is empty
           </Typography>

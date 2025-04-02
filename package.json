@@ -23,6 +23,7 @@
     "express": "^4.21.2",
     "framer-motion": "^11.18.2",
     "gsap": "^3.12.5",
+    "lottie-react": "^2.4.1",
     "mongoose": "^8.12.1",
     "motion": "^12.6.3",
     "nodemailer": "^6.10.0",

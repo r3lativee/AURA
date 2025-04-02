@@ -7,7 +7,7 @@ const About = () => {
     {
       name: "Shashanka Gogoi",
       role: "Development Team",
-      image: "\team-temple.jpg",
+      image: "\public\team-temple.jpg",
       description: "A versatile Full Stack Developer, Designer and 3D Artist with a passion for creative problem-solving, bringing ideas to life through innovative web solutions and immersive digital experiences"
     },
     {
@@ -19,7 +19,7 @@ const About = () => {
     {
       name: "Lord Krishna",
       role: "External Guide",
-      image: "https://www.istockphoto.com/photo/radhakrishna-idol-in-a-temple-gm2201188969-618854734?utm_campaign=srp_photos_bottom&utm_content=https%3A%2F%2Funsplash.com%2Fs%2Fphotos%2Fradha-and-krishna&utm_medium=affiliate&utm_source=unsplash&utm_term=radha+and+krishna%3A%3A%3A",
+      image: "https://images.unsplash.com/photo-1641730259879-ad98e7db7bcb?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8a3Jpc2huYXxlbnwwfHwwfHx8MA%3D%3D",
       description: "Divine guidance and wisdom in project development and execution"
     }
   ];

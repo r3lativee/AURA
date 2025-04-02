@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import Lottie from 'lottie-react';
+import noDataAnimation from '/public/lottie/no data.json';
 import {
   Container,
   Box,
@@ -263,6 +265,13 @@ const Cart = () => {
             border: '1px solid #333'
           }}
         >
+          <Box sx={{ width: '250px', height: '250px', mx: 'auto', mb: 2 }}>
+            <Lottie 
+              animationData={noDataAnimation} 
+              loop={true}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </Box>
           <Typography variant="h5" sx={{ mb: 3, color: 'white' }}>
             Your cart is empty
           </Typography>
