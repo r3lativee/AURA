@@ -1,0 +1,249 @@
+.favorites-container {
+  min-height: 100vh;
+  padding: 2rem;
+  background: #121212;
+  color: #ffffff;  padding-top: 200px;
+}
+
+.favorites-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #1E1E1E;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.favorites-content.empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  max-width: 600px;
+}
+
+.favorites-content.empty h2 {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.favorites-content.empty p {
+  color: #888;
+  margin-bottom: 2rem;
+}
+
+.favorites-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.favorites-header h1 {
+  font-size: 2rem;
+  font-weight: 500;
+  color: #ffffff;
+  margin: 0;
+}
+
+.remove-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.remove-all:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.favorite-item {
+  background: #252525;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.favorite-item:hover {
+  transform: translateY(-4px);
+}
+
+.item-image {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;  /* This creates a 1:1 aspect ratio */
+  background: #1E1E1E;
+  overflow: hidden;
+}
+
+.item-image img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;  /* Changed from cover to contain to show full product */
+  padding: 1rem;  /* Added padding to prevent image from touching the edges */
+  background: #252525;  /* Slightly lighter background for the image container */
+  transition: transform 0.3s ease;
+}
+
+.favorite-item:hover .item-image img {
+  transform: scale(1.05);
+}
+
+.remove-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #ff4757;
+  font-size: 1.2rem;
+}
+
+.remove-btn:hover {
+  background: #ff4757;
+  color: white;
+}
+
+.item-info {
+  padding: 1.5rem;
+}
+
+.item-info h3 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+  color: #ffffff;
+}
+
+.item-category {
+  color: #4a90e2;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.item-price {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #4a90e2;
+  margin: 0.5rem 0;
+}
+
+.stock-status {
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.stock-status[data-in-stock="true"] {
+  background: rgba(46, 213, 115, 0.2);
+  color: #2ed573;
+}
+
+.stock-status[data-in-stock="false"] {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+}
+
+.add-to-cart-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: #4a90e2;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+}
+
+.add-to-cart-btn:hover:not(:disabled) {
+  background: #357abd;
+  transform: translateY(-2px);
+}
+
+.add-to-cart-btn:disabled {
+  background: #4a4a4a;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.favorites-actions {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #333;
+}
+
+.browse-products,
+.continue-shopping {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: none;
+  color: #4a90e2;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.browse-products:hover,
+.continue-shopping:hover {
+  background: rgba(74, 144, 226, 0.1);
+}
+
+@media (max-width: 768px) {
+  .favorites-container {
+    padding: 1rem;
+  }
+
+  .favorites-content {
+    padding: 1rem;
+  }
+
+  .favorites-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+
+  .favorites-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .item-info {
+    padding: 1rem;
+  }
+} 
