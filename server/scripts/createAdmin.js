@@ -137,4 +137,4 @@ const run = async () => {
 };
 
 // Run the script
-run(); 
+run();

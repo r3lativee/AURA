@@ -243,6 +243,18 @@ export const favoritesAPI = {
   remove: (productId) => api.delete(`/favorites/${productId}`),
 };
 
+// Reviews API
+export const reviewsAPI = {
+  getByProduct: (productId) => api.get(`/reviews/product/${productId}`),
+  getMyReviews: () => api.get('/reviews/my-reviews'),
+  create: (productId, reviewData) => api.post('/reviews', { productId, ...reviewData }),
+  update: (reviewId, reviewData) => api.put(`/reviews/${reviewId}`, reviewData),
+  delete: (reviewId) => api.delete(`/reviews/${reviewId}`),
+  likeReview: (reviewId) => api.post(`/reviews/${reviewId}/like`),
+  unlikeReview: (reviewId) => api.delete(`/reviews/${reviewId}/like`),
+  addReply: (reviewId, comment) => api.post(`/reviews/${reviewId}/reply`, { comment }),
+};
+
 // Orders API
 export const ordersAPI = {
   create: (orderData) => api.post('/orders', orderData),

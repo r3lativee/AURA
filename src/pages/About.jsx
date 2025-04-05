@@ -1,13 +1,94 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { FiAward, FiShield, FiSmile } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+import SplitType from 'split-type';
+import gsap from 'gsap';
+import ScrollTrigger from 'gsap/ScrollTrigger';
 import '../styles/pages/About.css';
 
+// Register the ScrollTrigger plugin
+gsap.registerPlugin(ScrollTrigger);
+
 const About = () => {
+  const heroTextRef = useRef(null);
+  const missionTextRef = useRef(null);
+  const headingRefs = useRef([]);
+  
+  // Initialize refs array
+  headingRefs.current = [];
+  
+  // Add ref to the headingRefs array
+  const addToHeadingRefs = (el) => {
+    if (el && !headingRefs.current.includes(el)) {
+      headingRefs.current.push(el);
+    }
+  };
+
+  useEffect(() => {
+    // Hero Text Animation
+    if (heroTextRef.current) {
+      const text = new SplitType(heroTextRef.current, { types: 'chars' });
+      gsap.from(text.chars, {
+        opacity: 0,
+        y: 30,
+        rotateX: -90,
+        stagger: 0.02,
+        duration: 1,
+        ease: 'power4.out',
+      });
+    }
+    
+    // Mission Text Animation - Fade-in to bold effect
+    if (missionTextRef.current) {
+      gsap.fromTo(
+        missionTextRef.current, 
+        { fontWeight: 300, opacity: 0.5 }, 
+        {
+          fontWeight: 600,
+          opacity: 1,
+          duration: 1.5,
+          scrollTrigger: {
+            trigger: missionTextRef.current,
+            start: 'top bottom-=100',
+            end: 'bottom center',
+            scrub: true,
+          }
+        }
+      );
+    }
+    
+    // Section Headings Animation - Bold Scroll Flip Effect
+    headingRefs.current.forEach((heading) => {
+      gsap.fromTo(
+        heading,
+        { 
+          rotationX: 90, 
+          opacity: 0, 
+          y: 50 
+        },
+        {
+          rotationX: 0,
+          opacity: 1,
+          y: 0,
+          duration: 1.2,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: heading,
+            start: 'top bottom-=150',
+            end: 'bottom bottom-=150',
+            toggleActions: 'play none none reverse',
+          },
+        }
+      );
+    });
+    
+  }, []);
+
   const teamMembers = [
     {
       name: "Shashanka Gogoi",
       role: "Development Team",
-      image: "\public\team-temple.jpg",
+      image: "https://www.instagram.com/p/CvFhI3UpUKL/?utm_source=ig_web_button_share_sheet",
       description: "A versatile Full Stack Developer, Designer and 3D Artist with a passion for creative problem-solving, bringing ideas to life through innovative web solutions and immersive digital experiences"
     },
     {
@@ -42,45 +123,112 @@ const About = () => {
     }
   ];
 
+  // Animation variants for Framer Motion
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 60 },
+    visible: (custom) => ({ 
+      opacity: 1, 
+      y: 0, 
+      transition: { 
+        delay: custom * 0.1,
+        duration: 0.8, 
+        ease: [0.215, 0.61, 0.355, 1.0] 
+      } 
+    })
+  };
+  
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { 
+        staggerChildren: 0.1,
+        delayChildren: 0.3
+      }
+    }
+  };
+
+  const statCountVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { 
+        type: "spring", 
+        stiffness: 100, 
+        damping: 10,
+        delay: 0.4,
+      }
+    }
+  };
+
   return (
     <div className="about-container">
       <div className="about-hero">
         <div className="hero-content">
-          <h1>About AURA</h1>
-          <p>Elevating Men's Grooming Since 2023</p>
+          <h1 ref={heroTextRef} className="animated-hero-text">About AURA</h1>
+          <p className="animated-subtitle">Elevating Men's Grooming Since 2023</p>
         </div>
       </div>
 
-      <div className="about-section mission">
+      <motion.div 
+        className="about-section mission"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.3 }}
+        variants={fadeInUp}
+      >
         <div className="section-content">
-          <h2>Our Mission</h2>
-          <p>
+          <h2 ref={(el) => addToHeadingRefs(el)} className="section-heading">Our Mission</h2>
+          <p ref={missionTextRef} className="mission-text">
             At AURA, we're dedicated to revolutionizing men's grooming experience through 
             premium quality products and exceptional service. We believe every man deserves 
             access to high-quality grooming essentials that enhance their natural confidence 
             while maintaining ethical standards and sustainable practices.
           </p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="about-section values">
-        <h2>Our Values</h2>
-        <div className="values-grid">
+        <h2 ref={(el) => addToHeadingRefs(el)} className="section-heading">Our Values</h2>
+        <motion.div 
+          className="values-grid"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+        >
           {values.map((value, index) => (
-            <div key={index} className="value-card">
+            <motion.div 
+              key={index} 
+              className="value-card"
+              variants={fadeInUp}
+              custom={index}
+            >
               <div className="value-icon">{value.icon}</div>
-              <h3>{value.title}</h3>
+              <h3 className="value-title">{value.title}</h3>
               <p>{value.description}</p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
       <div className="about-section team">
-        <h2>Project Team</h2>
-        <div className="team-grid">
+        <h2 ref={(el) => addToHeadingRefs(el)} className="section-heading">Project Team</h2>
+        <motion.div 
+          className="team-grid"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+        >
           {teamMembers.map((member, index) => (
-            <div key={index} className="team-card">
+            <motion.div 
+              key={index} 
+              className="team-card"
+              variants={fadeInUp}
+              custom={index}
+            >
               <div className="member-image">
                 <img src={member.image} alt={member.name} />
               </div>
@@ -89,29 +237,35 @@ const About = () => {
                 <h4>{member.role}</h4>
                 <p>{member.description}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
-      <div className="about-section stats">
-        <div className="stat-card">
-          <h3>500+</h3>
+      <motion.div 
+        className="about-section stats"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+      >
+        <motion.div className="stat-card" variants={fadeInUp} custom={0}>
+          <motion.h3 variants={statCountVariants}>500+</motion.h3>
           <p>Happy Customers</p>
-        </div>
-        <div className="stat-card">
-          <h3>50+</h3>
+        </motion.div>
+        <motion.div className="stat-card" variants={fadeInUp} custom={1}>
+          <motion.h3 variants={statCountVariants}>50+</motion.h3>
           <p>Premium Products</p>
-        </div>
-        <div className="stat-card">
-          <h3>100%</h3>
+        </motion.div>
+        <motion.div className="stat-card" variants={fadeInUp} custom={2}>
+          <motion.h3 variants={statCountVariants}>100%</motion.h3>
           <p>Natural Ingredients</p>
-        </div>
-        <div className="stat-card">
-          <h3>24/7</h3>
+        </motion.div>
+        <motion.div className="stat-card" variants={fadeInUp} custom={3}>
+          <motion.h3 variants={statCountVariants}>24/7</motion.h3>
           <p>Customer Support</p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

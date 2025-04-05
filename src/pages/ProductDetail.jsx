@@ -36,7 +36,7 @@ import { useFavorites } from '../context/FavoritesContext';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import axios from 'axios';
+import { reviewsAPI, productsAPI } from '../services/api';
 
 // Separate error boundary component to catch model loading errors
 function ModelErrorBoundary({children}) {
@@ -108,16 +108,16 @@ const ProductDetail = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/products/${id}`);
-        if (response.ok) {
-          const data = await response.json();
-          setProduct(data);
-          if (data.sizes && data.sizes.length > 0) {
-            setSelectedSize(data.sizes[0].name);
-          }
+        setLoading(true);
+        const { data } = await productsAPI.getOne(id);
+        
+        setProduct(data);
+        if (data.sizes && data.sizes.length > 0) {
+          setSelectedSize(data.sizes[0].name);
         }
       } catch (error) {
         console.error('Error fetching product:', error);
+        setError('Failed to load product details');
       } finally {
         setLoading(false);
       }
@@ -132,8 +132,8 @@ const ProductDetail = () => {
     const fetchReviews = async () => {
       try {
         setReviewsLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/reviews/product/${id}`);
-        setReviews(response.data);
+        const { data } = await reviewsAPI.getByProduct(id);
+        setReviews(data);
       } catch (error) {
         console.error('Error fetching reviews:', error);
       } finally {
@@ -173,16 +173,16 @@ const ProductDetail = () => {
       setError('');
       setSuccess('');
 
-      const reviewData = {
-        ...newReview,
-        product: id
-      };
-
-      await axios.post('http://localhost:5000/api/reviews', reviewData);
+      // Use the reviewsAPI with the correct parameter format
+      await reviewsAPI.create(id, {
+        rating: newReview.rating,
+        title: newReview.title,
+        review: newReview.review
+      });
       
-      // Refresh reviews
-      const response = await axios.get(`http://localhost:5000/api/reviews/product/${id}`);
-      setReviews(response.data);
+      // Refresh reviews using the API
+      const { data } = await reviewsAPI.getByProduct(id);
+      setReviews(data);
       
       // Reset form
       setNewReview({
