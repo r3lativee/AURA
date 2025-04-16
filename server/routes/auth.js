@@ -230,7 +230,7 @@ router.post('/register-request', async (req, res, next) => {
   try {
     console.log('Register request received:', { ...req.body, password: '[REDACTED]' });
     
-    const { name, email, password } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
     
     // Basic validation
     if (!name || !email || !password) {
@@ -255,6 +255,17 @@ router.post('/register-request', async (req, res, next) => {
         success: false, 
         message: 'Password must be at least 6 characters long' 
       });
+    }
+
+    // Validate phone number if provided
+    if (phoneNumber) {
+      const phoneRegex = /^\d{10,15}$/;
+      if (!phoneRegex.test(phoneNumber.replace(/[^0-9]/g, ''))) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Please provide a valid phone number (10-15 digits)' 
+        });
+      }
     }
     
     // Simplify email check - just use lowercase email exact match
@@ -291,7 +302,8 @@ router.post('/register-request', async (req, res, next) => {
     // Store the user data temporarily (excluding password)
     const userData = {
       name,
-      email: normalizedEmail
+      email: normalizedEmail,
+      phoneNumber: phoneNumber ? phoneNumber.replace(/[^0-9]/g, '') : ''
     };
     
     // Return success response with the email
@@ -315,7 +327,7 @@ router.post('/register-request', async (req, res, next) => {
 // Verify OTP and complete registration
 router.post('/register-verify', async (req, res, next) => {
   try {
-    const { name, email, password, otp } = req.body;
+    const { name, email, password, phoneNumber, otp } = req.body;
     
     // Validate inputs
     if (!name || !email || !password || !otp) {
@@ -374,11 +386,15 @@ router.post('/register-verify', async (req, res, next) => {
       accountLocked: false
     };
     
+    // Format phone number if provided
+    const formattedPhoneNumber = phoneNumber ? phoneNumber.replace(/[^0-9]/g, '') : '';
+    
     // Create user object
     const newUser = {
       name,
       email: normalizedEmail, // Always store email in lowercase
       password: hashedPassword,
+      phoneNumber: formattedPhoneNumber,
       profileImage, // Add the random avatar
       isAdmin: false,
       isVerified: true, // Set to true since we've verified the email with OTP

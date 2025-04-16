@@ -63,7 +63,12 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.log('User authenticated:', data.user);
-      setUser(data.user);
+      // Ensure the user has paymentMethods property initialized
+      const userData = {
+        ...data.user,
+        paymentMethods: data.user.paymentMethods || []
+      };
+      setUser(userData);
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
@@ -291,23 +296,34 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       setLoading(true);
+      console.log('Updating profile with data:', JSON.stringify(profileData, null, 2));
       
-      console.log('Updating profile with data:', profileData);
-      
-      // Make the API call using try/catch to handle errors better
       try {
         const response = await authAPI.updateProfile(profileData);
-        console.log('Profile update response:', response);
+        console.log('Profile update response:', JSON.stringify(response.data, null, 2));
         
         if (response && response.data) {
           // Get the updated user data from response
           const userData = response.data.user || response.data;
           
-          // Update the user state
-          setUser(prevUser => ({
-            ...prevUser,
-            ...userData
-          }));
+          // Ensure we have the phone number (either from the response or the original request)
+          const phoneNumber = userData.phoneNumber || profileData.phoneNumber || '';
+          
+          console.log('Setting user state with phone number:', phoneNumber);
+          
+          // Update the user state with explicit handling of phoneNumber
+          setUser(prevUser => {
+            const updatedUser = {
+              ...prevUser,
+              ...userData,
+              phoneNumber: phoneNumber,
+              name: userData.name || prevUser.name,
+              addresses: userData.addresses || prevUser.addresses || []
+            };
+            
+            console.log('Updated user state:', updatedUser);
+            return updatedUser;
+          });
           
           // Show success message
           toast.success('Profile updated successfully');
@@ -315,7 +331,8 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (apiError) {
         console.error('API call failed:', apiError);
-        // Extract the error message from the API response
+        // Extract the error message from the API response and log more details
+        console.error('API error details:', apiError.response?.data);
         const errorMessage = apiError.response?.data?.message || 'Server connection error';
         toast.error(errorMessage);
         throw new Error(errorMessage);
@@ -340,6 +357,58 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
+  const uploadProfileImage = async (file) => {
+    setLoading(true);
+    try {
+      const response = await authAPI.uploadProfileImage(file);
+      console.log('Profile image uploaded:', response.data);
+      
+      if (!response.data.user || !response.data.user.profileImage) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Update the user in state with the new image URL
+      setUser(prevUser => ({
+        ...prevUser,
+        profileImage: response.data.user.profileImage
+      }));
+      
+      toast.success('Profile image updated successfully');
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to upload profile image';
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteProfileImage = async () => {
+    setLoading(true);
+    try {
+      const response = await authAPI.deleteProfileImage();
+      console.log('Profile image deleted:', response.data);
+      
+      // Update the user in state with the default image
+      setUser(prevUser => ({
+        ...prevUser,
+        profileImage: response.data.defaultImage || null
+      }));
+      
+      toast.success('Profile image removed');
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting profile image:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete profile image';
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -354,7 +423,9 @@ export const AuthProvider = ({ children }) => {
     ensureUserHasAvatar,
     checkAuth,
     isAuthenticated: !!user,
-    isAdmin: user?.isAdmin || false
+    isAdmin: user?.isAdmin || false,
+    uploadProfileImage,
+    deleteProfileImage
   };
 
   return (

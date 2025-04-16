@@ -5,42 +5,104 @@
   background: transparent;
   padding: 0;
   width: 100%;
+  perspective: 1000px;
 }
 
 .register-card {
   background: #1A1A1A;
-  padding: 3rem;
+  padding: 2.5rem;
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   width: 100%;
-  max-width: 800px;
+  max-width: 480px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at center,
+    rgba(100, 108, 255, 0.08),
+    transparent 30%
+  );
+  opacity: 0;
+  transform: scale(0.8);
+  animation: pulse 8s infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Lottie Animation styles */
+.lottie-container {
+  width: 100%;
+  height: 180px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.register-animation {
+  width: 200px;
+  height: 180px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
 }
 
 .register-header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .register-title {
   color: #ffffff;
-  font-size: 2.2rem;
-  margin-bottom: 1rem;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
   font-weight: 600;
+  background: linear-gradient(to right, #ffffff, #646cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .register-subtitle {
   color: #a0a0a0;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: 1.8rem;
-  max-width: 600px;
+  gap: 1.5rem;
+  max-width: 430px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .name-row {
@@ -54,16 +116,17 @@
 
 .form-group {
   position: relative;
+  overflow: hidden;
 }
 
 .form-input {
   width: 100%;
-  padding: 1.2rem;
+  padding: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   z-index: 10;
   position: relative;
@@ -73,6 +136,7 @@
   outline: none;
   border-color: #646cff;
   background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .form-label {
@@ -84,30 +148,67 @@
   transition: all 0.3s ease;
   pointer-events: none;
   z-index: 5;
+  font-size: 0.95rem;
 }
 
 .form-input:focus ~ .form-label,
 .form-input:not(:placeholder-shown) ~ .form-label {
   top: 0;
   left: 0.8rem;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   padding: 0 0.4rem;
   background: #1A1A1A;
   border-radius: 4px;
   z-index: 15;
+  color: #646cff;
+}
+
+.input-hint {
+  position: absolute;
+  bottom: -1.25rem;
+  left: 0.3rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.form-input:focus ~ .input-hint {
+  color: rgba(100, 108, 255, 0.8);
 }
 
 .register-button {
   background: #323232;
   color: white;
-  padding: 1.2rem;
+  padding: 1rem;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: all 0.5s ease;
+}
+
+.register-button:hover::before {
+  left: 100%;
 }
 
 .register-button:hover {
@@ -128,25 +229,42 @@
 
 .login-link {
   text-align: center;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .login-link a {
-  color: #ffffff;
+  color: #646cff;
   text-decoration: none;
   font-weight: 500;
   margin-left: 0.5rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.login-link a::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: #646cff;
+  transition: width 0.3s ease;
 }
 
 .login-link a:hover {
-  text-decoration: underline;
+  text-decoration: none;
+}
+
+.login-link a:hover::after {
+  width: 100%;
 }
 
 .password-requirements {
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
 }
 
 .requirement {
@@ -178,7 +296,7 @@
 @media (max-width: 768px) {
   .name-row {
     flex-direction: column;
-    gap: 1.8rem;
+    gap: 1.5rem;
   }
   
   .register-card {
@@ -186,22 +304,48 @@
     max-width: 100%;
   }
   
-  .otp-input {
-    width: 50px;
-    height: 50px;
-    font-size: 1.1rem;
+  .lottie-container {
+    height: 150px;
   }
-}
-
-@media (max-width: 480px) {
-  .otp-inputs {
-    gap: 10px;
+  
+  .register-animation {
+    width: 170px;
+    height: 150px;
   }
   
   .otp-input {
     width: 45px;
     height: 45px;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-card {
+    padding: 1.5rem;
+  }
+  
+  .lottie-container {
+    height: 120px;
+  }
+  
+  .register-animation {
+    width: 140px;
+    height: 120px;
+  }
+  
+  .otp-inputs {
+    gap: 8px;
+  }
+  
+  .otp-input {
+    width: 40px;
+    height: 40px;
     font-size: 1rem;
+  }
+  
+  .register-title {
+    font-size: 1.8rem;
   }
 }
 
@@ -212,6 +356,8 @@
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .otp-instructions {
@@ -223,7 +369,7 @@
 
 .otp-inputs {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
   margin: 15px 0;
   width: 100%;
@@ -231,8 +377,8 @@
 }
 
 .otp-input {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
@@ -241,20 +387,22 @@
   font-size: 1.2rem;
   font-weight: bold;
   outline: none;
-  transition: border 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .otp-input:focus {
   border: 2px solid #646cff;
   background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .otp-actions {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  align-items: center;
+  gap: 20px;
   width: 100%;
-  margin-top: 10px;
 }
 
 .resend-otp-button {
@@ -262,34 +410,43 @@
   border: none;
   color: #646cff;
   font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 5px;
-  margin: 0 auto;
-  text-decoration: underline;
+  padding: 0.5rem 1rem;
+  position: relative;
 }
 
-.resend-otp-button:hover {
-  color: #8f94ff;
+.resend-otp-button::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: #646cff;
+  transition: width 0.3s ease;
+}
+
+.resend-otp-button:hover::after {
+  width: 100%;
 }
 
 .resend-otp-button:disabled {
-  color: #555555;
+  color: #6b6b6b;
   cursor: not-allowed;
 }
 
-.back-button {
-  background: transparent;
-  color: #a0a0a0;
-  padding: 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 0.5rem;
+.resend-otp-button:disabled::after {
+  width: 0;
 }
 
-.back-button:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
+.back-button {
+  background: #222;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 } 

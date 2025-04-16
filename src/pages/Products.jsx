@@ -65,57 +65,54 @@ const Products = () => {
       opacity: 1, 
       y: 0, 
       transition: { 
-        delay: custom * 0.1,
+        delay: custom * 0.2,
         duration: 0.8, 
-        ease: [0.215, 0.61, 0.355, 1.0] 
+        ease: [0.16, 1, 0.3, 1]
       } 
     })
   };
   
+  // Animation variants for staggered animation
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { 
-        staggerChildren: 0.1,
-        delayChildren: 0.2
+      transition: {
+        staggerChildren: 0.2,
+        delayChildren: 0.3,
       }
     }
   };
   
   const cardVariants = {
     hidden: { 
-      opacity: 0, 
-      y: 30, 
-      scale: 0.95,
-      boxShadow: '0px 0px 0px rgba(0,0,0,0)'
+      opacity: 0,
+      y: 20
     },
-    visible: (custom) => ({ 
-      opacity: 1, 
-      y: 0, 
-      scale: 1,
-      boxShadow: '0px 10px 30px rgba(0,0,0,0.15)',
-      transition: { 
-        delay: custom * 0.05, 
-        duration: 0.6, 
-        ease: [0.215, 0.61, 0.355, 1.0] 
-      } 
-    }),
-    hover: { 
-      y: -15,
-      boxShadow: '0px 15px 40px rgba(0,0,0,0.2)',
-      transition: { 
-        duration: 0.3, 
-        ease: "easeOut" 
+    visible: { 
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }
+    },
+    hover: {
+      y: -5,
+      transition: {
+        duration: 0.3,
+        ease: [0.25, 0.1, 0.25, 1.0]
       }
     }
   };
   
   const imageVariants = {
-    hover: { 
-      scale: 1.15, 
-      filter: 'contrast(1.1) brightness(1.1)',
-      transition: { duration: 0.5 }
+    hover: {
+      scale: 1.05,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }
     }
   };
   
@@ -345,124 +342,55 @@ const Products = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <Box sx={{ mb: 6 }}>
-            <Typography variant="subtitle1" align="center" mb={4} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+          <div className="filters-section">
+            <Typography variant="body2" align="center" sx={{ color: 'rgba(255,255,255,0.7)' }}>
               Filters:
             </Typography>
-            <Grid container spacing={2} justifyContent="center">
-              <Grid item xs={12} sm={4} md={3}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    bgcolor: '#222222', 
-                    color: '#fff', 
-                    borderRadius: 2,
-                    '& .MuiOutlinedInput-root': {
-                      color: '#fff',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: 'rgba(255,255,255,0.7)',
-                    },
-                    '& .MuiSelect-icon': {
-                      color: '#fff',
-                    },
-                  }}
+            
+            <div className="filters-container">
+              <div>
+                <label className="filter-label">Price</label>
+                <select 
+                  className="filter-select"
+                  value={sortBy}
+                  onChange={(e) => handleSortChange(e)}
                 >
-                  <FormControl fullWidth variant="outlined">
-                    <InputLabel>Price</InputLabel>
-                    <Select
-                      value={sortBy}
-                      onChange={handleSortChange}
-                      label="Price"
-                      sx={{
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(255,255,255,0.2)',
-                        },
-                      }}
-                    >
-                      <MenuItem value="newest">Newest</MenuItem>
-                      <MenuItem value="price_low">Price: Low to High</MenuItem>
-                      <MenuItem value="price_high">Price: High to Low</MenuItem>
-                      <MenuItem value="popular">Most Popular</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} sm={4} md={3}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    bgcolor: '#222222', 
-                    color: '#fff',
-                    borderRadius: 2,
-                    '& .MuiOutlinedInput-root': {
-                      color: '#fff',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: 'rgba(255,255,255,0.7)',
-                    },
-                    '& .MuiSelect-icon': {
-                      color: '#fff',
-                    },
-                  }}
+                  <option className="filter-option" value="newest">Newest</option>
+                  <option className="filter-option" value="price_low">Price: Low to High</option>
+                  <option className="filter-option" value="price_high">Price: High to Low</option>
+                  <option className="filter-option" value="popular">Most Popular</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="filter-label">Product</label>
+                <select 
+                  className="filter-select"
+                  value={category}
+                  onChange={(e) => handleCategoryChange(e)}
                 >
-                  <FormControl fullWidth variant="outlined">
-                    <InputLabel>Product</InputLabel>
-                    <Select
-                      value={category}
-                      onChange={handleCategoryChange}
-                      label="Product"
-                      sx={{
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(255,255,255,0.2)',
-                        },
-                      }}
-                    >
-                      <MenuItem value="all">All Categories</MenuItem>
-                      <MenuItem value="Beard Care">Beard Care</MenuItem>
-                      <MenuItem value="Skincare">Skincare</MenuItem>
-                      <MenuItem value="Hair Care">Hair Care</MenuItem>
-                      <MenuItem value="Accessories">Accessories</MenuItem>
-                      <MenuItem value="Body Care">Body Care</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} sm={4} md={3}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    bgcolor: '#222222', 
-                    color: '#fff',
-                    borderRadius: 2,
-                    '& .MuiOutlinedInput-root': {
-                      color: '#fff',
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: 'rgba(255,255,255,0.7)',
-                    },
-                  }}
+                  <option className="filter-option" value="all">All Categories</option>
+                  <option className="filter-option" value="Beard Care">Beard Care</option>
+                  <option className="filter-option" value="Skincare">Skincare</option>
+                  <option className="filter-option" value="Hair Care">Hair Care</option>
+                  <option className="filter-option" value="Accessories">Accessories</option>
+                  <option className="filter-option" value="Body Care">Body Care</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="filter-label">Relevance</label>
+                <select 
+                  className="filter-select"
+                  value="relevance"
                 >
-                  <FormControl fullWidth variant="outlined">
-                    <InputLabel>Relevance</InputLabel>
-                    <Select
-                      value="relevance"
-                      label="Relevance"
-                      sx={{
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(255,255,255,0.2)',
-                        },
-                      }}
-                    >
-                      <MenuItem value="relevance">Most Relevant</MenuItem>
-                      <MenuItem value="trending">Trending</MenuItem>
-                      <MenuItem value="bestseller">Best Seller</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Box>
+                  <option className="filter-option" value="relevance">Most Relevant</option>
+                  <option className="filter-option" value="trending">Trending</option>
+                  <option className="filter-option" value="bestseller">Best Seller</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         <motion.div
@@ -484,184 +412,69 @@ const Products = () => {
               products.map((product, index) => (
                 <Grid item key={product._id} xs={12} sm={6} md={4}>
                   <motion.div
-                    variants={cardVariants}
                     custom={index}
+                    variants={cardVariants}
                     whileHover="hover"
+                    className="product-card"
                   >
                     <Box 
                       sx={{ 
                         position: 'relative',
-                        bgcolor: 'rgba(34, 34, 34, 0.8)',
-                        borderRadius: 2,
+                        backgroundColor: '#1A1A1A',
                         overflow: 'hidden',
                         border: '1px solid rgba(255, 255, 255, 0.05)',
-                        backdropFilter: 'blur(10px)',
-                        willChange: 'transform, box-shadow'
+                        height: '100%',
+                        borderRadius: '15px',
+                        transition: 'all 0.3s ease'
                       }}
                     >
                       {/* Favorite button */}
-                      <motion.div
-                        whileHover={{ scale: 1.2, rotate: 5 }}
-                        whileTap={{ scale: 0.9 }}
+                      <button
+                        className={`favorite-button ${isFavorite(product._id) ? 'active' : ''}`}
+                        onClick={(e) => handleFavoriteToggle(e, product._id)}
+                        aria-label={isFavorite(product._id) ? "Remove from favorites" : "Add to favorites"}
                       >
-                        <Button
-                          variant="contained"
-                          sx={{
-                            position: 'absolute',
-                            top: 10,
-                            right: 10,
-                            minWidth: 'auto',
-                            width: 36,
-                            height: 36,
-                            p: 0,
-                            bgcolor: 'rgba(0,0,0,0.5)',
-                            color: isFavorite(product._id) ? '#ff4d4d' : '#fff',
-                            borderRadius: '50%',
-                            '&:hover': {
-                              bgcolor: 'rgba(0,0,0,0.7)',
-                            },
-                            zIndex: 2,
-                            backdropFilter: 'blur(4px)'
-                          }}
-                          onClick={(e) => handleFavoriteToggle(e, product._id)}
-                        >
-                          <FiHeart 
-                            size={16} 
-                            fill={isFavorite(product._id) ? '#ff4d4d' : 'none'} 
-                          />
-                        </Button>
-                      </motion.div>
+                        <FiHeart size={16} />
+                      </button>
                       
                       {/* Product image - clickable to navigate to product detail */}
-                      <motion.div
-                        whileHover="hover"
+                      <div 
+                        className="product-image"
+                        onClick={() => navigate(`/product/${product._id}`)}
                       >
-                        <Box
-                          sx={{ 
-                            cursor: 'pointer',
-                            height: 260,
-                            bgcolor: '#1a1a1a',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            overflow: 'hidden'
+                        <motion.img
+                          variants={imageVariants}
+                          src={`${import.meta.env.VITE_API_URL}${product.images[0]}`}
+                          alt={product.name}
+                          onError={(e) => {
+                            e.target.src = '/placeholder.jpg';
                           }}
-                          onClick={() => navigate(`/product/${product._id}`)}
-                        >
-                          <motion.img
-                            variants={imageVariants}
-                            src={`${import.meta.env.VITE_API_URL}${product.images[0]}`}
-                            alt={product.name}
-                            style={{ 
-                              width: '100%', 
-                              height: '100%', 
-                              objectFit: 'cover',
-                              willChange: 'transform'
-                            }}
-                            onError={(e) => {
-                              e.target.src = '/placeholder.jpg';
-                            }}
-                          />
-                        </Box>
-                      </motion.div>
+                        />
+                      </div>
                       
                       {/* Product info */}
-                      <Box p={3}>
-                        <Typography 
-                          variant="h6" 
-                          sx={{ 
-                            color: '#fff',
-                            fontWeight: 600,
-                            mb: 1
-                          }}
-                        >
-                          {product.name}
-                        </Typography>
+                      <div className="product-info">
+                        <div className="product-category">{product.category}</div>
+                        <h3 className="product-name">{product.name}</h3>
                         
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: 'rgba(255,255,255,0.7)',
-                            mb: 2,
-                            height: 60,
-                            overflow: 'hidden',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 3,
-                            WebkitBoxOrient: 'vertical',
-                          }}
-                        >
-                          {product.description}
-                        </Typography>
+                        <div className="product-meta">
+                          <div className="product-price">${product.price}</div>
+                          <div className={`product-status ${product.inStock ? 'in-stock' : 'out-of-stock'}`}>
+                            {product.inStock ? 'In Stock' : 'Out of Stock'}
+                          </div>
+                        </div>
                         
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ 
-                            delay: 0.3 + (index * 0.1), 
-                            type: "spring", 
-                            stiffness: 100, 
-                            damping: 10
-                          }}
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="add-to-cart"
+                          onClick={() => handleAddToCart(product, quantities[product._id] || 1)}
+                          disabled={!product.inStock}
                         >
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              color: '#4a90e2',
-                              fontWeight: 700,
-                              mb: 2
-                            }}
-                          >
-                            ${product.price}
-                          </Typography>
-                        </motion.div>
-                        
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <motion.div
-                            variants={buttonVariants}
-                            initial="rest"
-                            whileHover="hover"
-                            whileTap="tap"
-                            style={{ flex: 1 }}
-                          >
-                            <Button
-                              variant="outlined"
-                              sx={{
-                                width: '100%',
-                                color: '#fff',
-                                borderColor: 'rgba(255,255,255,0.3)',
-                                '&:hover': {
-                                  borderColor: '#4a90e2',
-                                  bgcolor: 'rgba(74, 144, 226, 0.1)'
-                                }
-                              }}
-                              onClick={() => handleAddToCart(product, quantities[product._id] || 1)}
-                            >
-                              Add to Cart
-                            </Button>
-                          </motion.div>
-                          
-                          <motion.div
-                            variants={buttonVariants}
-                            initial="rest"
-                            whileHover="hover"
-                            whileTap="tap"
-                          >
-                            <Button
-                              variant="contained"
-                              sx={{
-                                bgcolor: '#4a90e2',
-                                color: '#fff',
-                                '&:hover': {
-                                  bgcolor: '#357abd',
-                                }
-                              }}
-                              onClick={() => navigate(`/product/${product._id}`)}
-                            >
-                              Buy Now
-                            </Button>
-                          </motion.div>
-                        </Box>
-                      </Box>
+                          <span className="button-text">Add to Cart</span>
+                          <FiShoppingCart size={16} />
+                        </motion.button>
+                      </div>
                     </Box>
                   </motion.div>
                 </Grid>
@@ -684,7 +497,8 @@ const Products = () => {
                 color="primary"
                 sx={{
                   '& .MuiPaginationItem-root': {
-                    color: '#fff'
+                    color: '#fff',
+                    borderRadius: '50px'
                   },
                   '& .Mui-selected': {
                     bgcolor: 'rgba(74, 144, 226, 0.3)'
@@ -703,7 +517,7 @@ const Products = () => {
           <Alert
             onClose={handleCloseNotification}
             severity={notification.type}
-            sx={{ width: '100%' }}
+            sx={{ width: '100%', borderRadius: '15px' }}
           >
             {notification.message}
           </Alert>

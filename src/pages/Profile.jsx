@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Paper,
@@ -9,16 +9,37 @@ import {
   Avatar,
   Alert,
   CircularProgress,
+  Divider,
+  IconButton,
+  Card,
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Switch,
+  FormControlLabel,
+  Badge,
+  Tooltip,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import InputWithFocusLock from '../components/InputWithFocusLock';
+import { motion } from 'framer-motion';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import { authAPI } from '../services/api';
 
 const Profile = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, uploadProfileImage, deleteProfileImage } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -31,17 +52,28 @@ const Profile = () => {
     profileImage: '',
   });
 
+  const [newPaymentMethod, setNewPaymentMethod] = useState({
+    cardName: '',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    isDefault: false
+  });
+
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     if (user) {
-      console.log('User data for profile:', user);
+      const defaultAddress = user.addresses?.find(addr => addr.isDefault) || user.addresses?.[0];
       
-      const defaultAddress = user.addresses && user.addresses.length > 0
-        ? user.addresses.find(addr => addr.isDefault) || user.addresses[0]
-        : null;
-      
-      const profileImage = user.profileImage || '';
-      
-      console.log('Setting profile image:', profileImage);
+      // Log the available user data for debugging
+      console.log('Setting profile data from user:', { 
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        hasAddresses: !!user.addresses?.length,
+        paymentMethods: user.paymentMethods || 'none'
+      });
       
       setProfileData({
         name: user.name || '',
@@ -52,10 +84,34 @@ const Profile = () => {
         state: defaultAddress?.state || '',
         pincode: defaultAddress?.pincode || '',
         country: defaultAddress?.country || 'India',
-        profileImage: profileImage,
+        profileImage: user.profileImage || '',
       });
+
+      // Fetch payment methods
+      fetchPaymentMethods();
     }
   }, [user]);
+
+  const fetchPaymentMethods = async () => {
+    try {
+      console.log('Fetching payment methods...');
+      const response = await authAPI.getPaymentMethods();
+      console.log('Payment methods response:', response.data);
+      
+      if (response.data?.success && response.data?.paymentMethods) {
+        console.log('Setting payment methods:', response.data.paymentMethods);
+        setPaymentMethods(response.data.paymentMethods);
+      } else {
+        console.warn('No payment methods found in response:', response.data);
+        setPaymentMethods([]);
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error.response || error);
+      // Set empty array to prevent undefined errors
+      setPaymentMethods([]);
+      // Don't show a toast here, just log the error
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -74,20 +130,39 @@ const Profile = () => {
     });
   };
 
+  const handlePaymentInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewPaymentMethod(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleDefaultChange = (e) => {
+    setNewPaymentMethod(prev => ({
+      ...prev,
+      isDefault: e.target.checked
+    }));
+  };
+
   const validateProfileData = () => {
     if (!profileData.name.trim()) {
       setError('Name is required');
       return false;
     }
     
-    if (!profileData.phoneNumber.trim()) {
+    // Log the phoneNumber for debugging
+    console.log('Validating phoneNumber:', profileData.phoneNumber);
+    
+    if (!profileData.phoneNumber || !profileData.phoneNumber.trim()) {
       setError('Phone number is required');
       return false;
     }
     
+    const phoneNumber = profileData.phoneNumber.replace(/[^0-9]/g, '');
     const phoneRegex = /^\d{10,15}$/;
-    if (!phoneRegex.test(profileData.phoneNumber.replace(/[^0-9]/g, ''))) {
-      setError('Please enter a valid phone number (10-15 digits)');
+    if (!phoneRegex.test(phoneNumber)) {
+      setError(`Please enter a valid phone number (10-15 digits). You entered: ${profileData.phoneNumber}`);
       return false;
     }
     
@@ -109,6 +184,52 @@ const Profile = () => {
     const pincodeRegex = /^\d{6}$/;
     if (!pincodeRegex.test(profileData.pincode.replace(/[^0-9]/g, ''))) {
       setError('Please enter a valid 6-digit pincode');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const validatePaymentData = () => {
+    if (!newPaymentMethod.cardName.trim()) {
+      toast.error('Card name is required');
+      return false;
+    }
+    
+    if (!newPaymentMethod.cardNumber.trim()) {
+      toast.error('Card number is required');
+      return false;
+    }
+    
+    // Validate card number
+    const cardNumber = newPaymentMethod.cardNumber.replace(/\s/g, '');
+    const cardNumberRegex = /^\d{16}$/;
+    if (!cardNumberRegex.test(cardNumber)) {
+      toast.error('Please enter a valid 16-digit card number');
+      return false;
+    }
+    
+    if (!newPaymentMethod.expiryDate.trim()) {
+      toast.error('Expiry date is required');
+      return false;
+    }
+    
+    // Validate expiry date
+    const expiryDateRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
+    if (!expiryDateRegex.test(newPaymentMethod.expiryDate)) {
+      toast.error('Please enter a valid expiry date (MM/YY)');
+      return false;
+    }
+    
+    if (!newPaymentMethod.cvv.trim()) {
+      toast.error('CVV is required');
+      return false;
+    }
+    
+    // Validate CVV
+    const cvvRegex = /^\d{3,4}$/;
+    if (!cvvRegex.test(newPaymentMethod.cvv)) {
+      toast.error('Please enter a valid CVV (3-4 digits)');
       return false;
     }
     
@@ -142,12 +263,13 @@ const Profile = () => {
         address
       };
 
-      console.log('Sending profile update:', dataToSend);
+      console.log('Sending profile update:', JSON.stringify(dataToSend, null, 2));
       
       try {
         await updateProfile(dataToSend);
         // Only set success here if updateProfile doesn't throw an error
         setSuccess('Profile updated successfully!');
+        toast.success('Profile updated successfully');
       } catch (apiError) {
         // Let the error from updateProfile propagate to the outer catch
         throw apiError;
@@ -157,42 +279,183 @@ const Profile = () => {
       console.error('Profile update error:', err);
       // Use the error message if available, otherwise show a generic message
       setError(err.message || 'An unexpected error occurred. Please try again.');
+      toast.error(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddPaymentMethod = async () => {
+    if (!validatePaymentData()) {
+      return;
+    }
+    
+    setPaymentLoading(true);
+    
+    try {
+      const response = await authAPI.addPaymentMethod(newPaymentMethod);
+      
+      if (response.data?.success) {
+        toast.success('Payment method added successfully');
+        setNewPaymentMethod({
+          cardName: '',
+          cardNumber: '',
+          expiryDate: '',
+          cvv: '',
+          isDefault: false
+        });
+        setOpenPaymentDialog(false);
+        
+        // Refresh payment methods
+        fetchPaymentMethods();
+      }
+    } catch (error) {
+      console.error('Failed to add payment method:', error);
+      toast.error(error.response?.data?.message || 'Failed to add payment method');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleDeletePaymentMethod = async (id) => {
+    try {
+      const response = await authAPI.deletePaymentMethod(id);
+      
+      if (response.data?.success) {
+        toast.success('Payment method deleted');
+        
+        // Update local state
+        setPaymentMethods(prevMethods => 
+          prevMethods.filter(method => method._id !== id)
+        );
+      }
+    } catch (error) {
+      console.error('Failed to delete payment method:', error);
+      toast.error('Failed to delete payment method');
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPEG, PNG, or GIF)');
+      return;
+    }
+    
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast.error('Image file is too large. Please select an image under 5MB');
+      return;
+    }
+    
+    setImageLoading(true);
+    try {
+      await uploadProfileImage(file);
+      toast.success('Profile image updated!');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image. Please try again.');
+    } finally {
+      setImageLoading(false);
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+  
+  const handleRemoveImage = async () => {
+    setImageLoading(true);
+    try {
+      await deleteProfileImage();
+      toast.success('Profile image removed');
+    } catch (error) {
+      console.error('Error removing image:', error);
+      toast.error('Failed to remove image. Please try again.');
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  // Animation variants
+  const fadeIn = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1.0] }
     }
   };
 
   return (
     <Container maxWidth="md" sx={{ 
       py: 8, 
-      pt: '200px',
+      pt: '160px',
       display: 'flex', 
-      justifyContent: 'center' 
+      justifyContent: 'center',
+      minHeight: '100vh'
     }}>
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeIn}
+        style={{ width: '100%' }}
+      >
       <Paper sx={{ 
-        p: 4, 
-        backgroundColor: '#1A1A1A', 
-        borderRadius: '12px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          p: { xs: 2, sm: 3, md: 4 }, 
+          backgroundColor: '#050505', 
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
         maxWidth: 800,
         width: '100%'
       }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h4" gutterBottom align="center" sx={{ fontWeight: 700, mb: 3, color: '#fff' }}>
-            My Profile
+            <Typography variant="h4" gutterBottom align="center" sx={{ 
+              fontWeight: 400, 
+              mb: 3, 
+              color: '#fff',
+              fontSize: { xs: '1.8rem', sm: '2.2rem' },
+              letterSpacing: '-0.5px'
+            }}>
+              Profile
           </Typography>
           
+            <Badge
+              overlap="circular"
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              badgeContent={
+                <Tooltip title="Change profile picture">
+                  <IconButton 
+                    sx={{ 
+                      bgcolor: 'rgba(255, 255, 255, 0.1)', 
+                      '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.2)' } 
+                    }}
+                    onClick={() => fileInputRef.current.click()}
+                    disabled={imageLoading}
+                    size="small"
+                  >
+                    {imageLoading ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <EditIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              }
+            >
           <Avatar
             src={profileData.profileImage || 'https://i.imgur.com/3tVgsra.png'}
             alt={profileData.name}
             sx={{ 
-              width: 140, 
-              height: 140, 
-              bgcolor: 'primary.main',
-              border: '4px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-              fontSize: '40px',
-              mb: 2
+                  width: 100, 
+                  height: 100, 
+                  bgcolor: 'background.paper',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
             }}
             imgProps={{
               onError: (e) => {
@@ -203,32 +466,83 @@ const Profile = () => {
           >
             {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
           </Avatar>
-          
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            </Badge>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleImageUpload}
+              accept="image/jpeg,image/png,image/gif"
+            />
+            
+            <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+              {profileData.profileImage && !profileData.profileImage.includes('imgur.com') && (
+                <Button 
+                  size="small" 
+                  sx={{ 
+                    fontSize: '0.75rem',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    textTransform: 'none',
+                    '&:hover': { color: '#ef5350' }
+                  }}
+                  startIcon={<DeleteIcon fontSize="small" />}
+                  onClick={handleRemoveImage}
+                  disabled={imageLoading}
+                >
+                  Remove
+                </Button>
+              )}
+            </Box>
+            
+            <Typography variant="h5" sx={{ 
+              fontWeight: 400,
+              fontSize: '1.2rem',
+              mb: 0.5,
+              mt: 1 
+            }}>
             {profileData.name}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
             {profileData.email}
           </Typography>
-          
-          <Typography 
-            variant="caption" 
-            display="block" 
-            sx={{ 
-              textAlign: 'center', 
-              mt: 1, 
-              color: 'text.secondary',
-              maxWidth: 250
-            }}
-          >
-            Your unique avatar is generated automatically
+            {profileData.phoneNumber && (
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)', mt: 0.5 }}>
+                {profileData.phoneNumber}
           </Typography>
+            )}
         </Box>
         
         {(success || error) && (
           <Box sx={{ mb: 3 }}>
-            {success && <Alert severity="success">{success}</Alert>}
-            {error && <Alert severity="error">{error}</Alert>}
+              {success && (
+                <Alert 
+                  severity="success"
+                  sx={{
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    color: '#9ccc65',
+                    '& .MuiAlert-icon': { color: '#9ccc65' },
+                    border: '1px solid rgba(46, 125, 50, 0.2)',
+                    borderRadius: '20px'
+                  }}
+                >
+                  {success}
+                </Alert>
+              )}
+              {error && (
+                <Alert 
+                  severity="error"
+                  sx={{
+                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                    color: '#ef5350',
+                    '& .MuiAlert-icon': { color: '#ef5350' },
+                    border: '1px solid rgba(211, 47, 47, 0.2)',
+                    borderRadius: '20px'
+                  }}
+                >
+                  {error}
+                </Alert>
+              )}
           </Box>
         )}
 
@@ -239,250 +553,448 @@ const Profile = () => {
                 display: 'flex', 
                 alignItems: 'center', 
                 mb: 2,
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)', 
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
                 pb: 1 
               }}>
-                <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#fff', 
+                    fontWeight: 400,
+                    fontSize: '1rem',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}>
                   Personal Information
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12} sm={6}>
               <InputWithFocusLock
-                fullWidth
                 label="Full Name"
                 name="name"
                 value={profileData.name}
                 onChange={handleInputChange}
+                  fullWidth
                 required
-                error={error && !profileData.name.trim()}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
-                }}
-                autoComplete="name"
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <InputWithFocusLock
-                fullWidth
-                label="Email"
+                  label="Email Address"
                 type="email"
                 value={profileData.email}
+                  fullWidth
                 disabled
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                  },
-                  position: 'relative',
-                  zIndex: 5,
+                  helperText="Email cannot be changed"
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
                 }}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
               <InputWithFocusLock
-                fullWidth
                 label="Phone Number"
                 name="phoneNumber"
                 value={profileData.phoneNumber}
                 onChange={handleInputChange}
+                  fullWidth
                 required
-                error={error && !profileData.phoneNumber.trim()}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
-                }}
-                autoComplete="tel"
+                  placeholder="Enter your phone number"
+                  helperText="Phone number should be 10-15 digits"
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
               />
             </Grid>
+              
             <Grid item xs={12}>
               <Box sx={{ 
                 display: 'flex', 
                 alignItems: 'center', 
-                mt: 2, 
                 mb: 2,
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)', 
+                  mt: 1,
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
                 pb: 1 
               }}>
-                <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#fff', 
+                    fontWeight: 400,
+                    fontSize: '1rem',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}>
                   Shipping Address
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={12}>
               <InputWithFocusLock
-                fullWidth
                 label="Street Address"
                 name="street"
                 value={profileData.street}
                 onChange={handleInputChange}
+                  fullWidth
                 required
-                multiline
-                rows={2}
-                error={error && !profileData.street.trim()}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
-                }}
-                autoComplete="street-address"
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <InputWithFocusLock
-                fullWidth
                 label="City"
                 name="city"
                 value={profileData.city}
                 onChange={handleInputChange}
-                required
-                error={error && !profileData.city.trim()}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
-                }}
-                autoComplete="address-level2"
-              />
+                  fullWidth
+                  required
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InputWithFocusLock
+                  label="State"
+                  name="state"
+                  value={profileData.state}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InputWithFocusLock
+                  label="Pincode"
+                  name="pincode"
+                  value={profileData.pincode}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InputWithFocusLock
+                  label="Country"
+                  name="country"
+                  value={profileData.country}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
+                  inputProps={{
+                    style: { 
+                      fontWeight: 300,
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '20px'
+                    }
+                  }}
+                />
+              </Grid>
+              
+              {/* Payment Methods Section */}
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  mb: 2,
+                  mt: 1,
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
+                  pb: 1 
+                }}>
+                  <Typography variant="h6" sx={{ 
+                    color: '#fff', 
+                    fontWeight: 400,
+                    fontSize: '1rem',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}>
+                    Payment Methods
+                  </Typography>
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={() => setOpenPaymentDialog(true)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 400,
+                      color: '#fff',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '20px',
+                      padding: '5px 15px',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                      }
+                    }}
+                  >
+                    Add Card
+                  </Button>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12}>
+                {paymentMethods.length === 0 ? (
+                  <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.6)', textAlign: 'center', py: 2 }}>
+                    You don't have any saved payment methods.
+                  </Typography>
+                ) : (
+                  <Grid container spacing={2}>
+                    {paymentMethods.map((method) => (
+                      <Grid item xs={12} md={6} key={method._id || Math.random().toString()}>
+                        <Card sx={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: '15px',
+                          position: 'relative'
+                        }}>
+                          <CardContent>
+                            <Box sx={{ position: 'absolute', top: '10px', right: '10px' }}>
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleDeletePaymentMethod(method._id)}
+                                sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                            
+                            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
+                              {method.cardName}
+                              {method.isDefault && (
+                                <Typography 
+                                  component="span" 
+                                  sx={{ 
+                                    ml: 1, 
+                                    fontSize: '0.75rem', 
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    color: '#fff',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px'
+                                  }}
+                                >
+                                  Default
+                                </Typography>
+                              )}
+                            </Typography>
+                            
+                            <Typography variant="body1" sx={{ fontFamily: 'monospace', letterSpacing: '1px' }}>
+                              {method.cardNumber}
+                            </Typography>
+                            
+                            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                              Expires: {method.expiryDate}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Grid>
+              
+              <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  sx={{
+                    minWidth: '200px',
+                    padding: '10px 20px',
+                    textTransform: 'none',
+                    fontWeight: 400,
+                    borderRadius: '20px',
+                    backgroundColor: '#fff',
+                    color: '#000',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.8)'
+                    }
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress size={24} color="inherit" />
+                  ) : (
+                    'Update Profile'
+                  )}
+                </Button>
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6}>
+          </form>
+        </Paper>
+      </motion.div>
+      
+      {/* Add Payment Method Dialog */}
+      <Dialog 
+        open={openPaymentDialog} 
+        onClose={() => setOpenPaymentDialog(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A0A0A',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            borderRadius: '15px',
+            maxWidth: '500px',
+            width: '100%'
+          }
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          Add Payment Method
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
               <InputWithFocusLock
+                label="Name on Card"
+                name="cardName"
+                value={newPaymentMethod.cardName}
+                onChange={handlePaymentInputChange}
                 fullWidth
-                label="State"
-                name="state"
-                value={profileData.state}
-                onChange={handleInputChange}
                 required
-                error={error && !profileData.state.trim()}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
+                inputProps={{
+                  style: { 
+                    fontWeight: 300,
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '20px'
+                  }
                 }}
-                autoComplete="address-level1"
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <InputWithFocusLock
+                label="Card Number"
+                name="cardNumber"
+                value={newPaymentMethod.cardNumber}
+                onChange={handlePaymentInputChange}
                 fullWidth
-                label="Pincode"
-                name="pincode"
-                value={profileData.pincode}
-                onChange={handleInputChange}
                 required
-                error={error && !profileData.pincode.trim()}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
+                placeholder="1234 5678 9012 3456"
+                helperText="16-digit number without spaces"
+                inputProps={{
+                  style: { 
+                    fontWeight: 300,
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '20px'
+                  }
                 }}
-                autoComplete="postal-code"
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <InputWithFocusLock
+                label="Expiry Date"
+                name="expiryDate"
+                value={newPaymentMethod.expiryDate}
+                onChange={handlePaymentInputChange}
                 fullWidth
-                label="Country"
-                name="country"
-                value={profileData.country}
-                onChange={handleInputChange}
                 required
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main',
-                      borderWidth: '2px',
-                    },
-                  },
-                  position: 'relative',
-                  zIndex: 5,
+                placeholder="MM/YY"
+                helperText="e.g. 09/25"
+                inputProps={{
+                  style: { 
+                    fontWeight: 300,
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '20px'
+                  }
                 }}
-                autoComplete="country-name"
               />
             </Grid>
-            <Grid item xs={12} display="flex" justifyContent="center" mt={2}>
-              <Button
-                type="submit"
-                variant="contained"
+            <Grid item xs={6}>
+              <InputWithFocusLock
+                label="CVV"
+                name="cvv"
+                value={newPaymentMethod.cvv}
+                onChange={handlePaymentInputChange}
+                fullWidth
+                required
+                helperText="3-4 digits on back of card"
+                inputProps={{
+                  style: { 
+                    fontWeight: 300,
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '20px'
+                  }
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={newPaymentMethod.isDefault}
+                    onChange={handleDefaultChange}
                 color="primary"
-                disabled={loading}
-                sx={{
-                  borderRadius: '8px',
-                  padding: '10px 24px',
-                  fontWeight: 600,
-                  boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
-                  '&:hover': {
-                    boxShadow: '0 6px 15px rgba(0, 0, 0, 0.15)',
-                    transform: 'translateY(-2px)',
-                  },
-                }}
-              >
-                {loading ? <CircularProgress size={24} /> : 'Save Changes'}
-              </Button>
+                  />
+                }
+                label="Set as default payment method"
+              />
             </Grid>
           </Grid>
-        </form>
-      </Paper>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <Button 
+            onClick={() => setOpenPaymentDialog(false)}
+            sx={{ 
+              color: 'rgba(255, 255, 255, 0.6)',
+              textTransform: 'none'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddPaymentMethod}
+            disabled={paymentLoading}
+            variant="contained"
+            sx={{
+              backgroundColor: '#fff',
+              color: '#000',
+              textTransform: 'none',
+              borderRadius: '20px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.8)'
+              }
+            }}
+          >
+            {paymentLoading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              'Add Payment Method'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

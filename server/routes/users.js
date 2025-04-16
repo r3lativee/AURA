@@ -61,7 +61,13 @@ router.patch('/profile', auth, async (req, res) => {
   try {
     console.log("Profile update request received:", {
       userId: req.user._id,
-      body: { ...req.body, password: req.body.password ? '[REDACTED]' : undefined }
+      body: { 
+        ...req.body, 
+        password: req.body.password ? '[REDACTED]' : undefined,
+        name: req.body.name,
+        phoneNumber: req.body.phoneNumber,
+        hasAddress: !!req.body.address 
+      }
     });
     
     const { name, phoneNumber, address } = req.body;
@@ -69,7 +75,10 @@ router.patch('/profile', auth, async (req, res) => {
 
     // Basic profile updates
     if (name) updates.name = name;
-    if (phoneNumber) updates.phoneNumber = phoneNumber;
+    if (phoneNumber !== undefined) {
+      updates.phoneNumber = phoneNumber;
+      console.log(`Updating phoneNumber to: "${phoneNumber}"`);
+    }
 
     // Handle address update
     if (address) {
@@ -148,6 +157,8 @@ router.patch('/profile', auth, async (req, res) => {
 
     // If just updating basic info without address
     try {
+      console.log('Updating user with data:', updates);
+      
       const updatedUser = await User.findByIdAndUpdate(
         req.user._id,
         { $set: updates },
@@ -162,7 +173,10 @@ router.patch('/profile', auth, async (req, res) => {
         });
       }
       
-      console.log(`Basic profile updated successfully for user: ${updatedUser._id}`);
+      console.log(`Basic profile updated successfully for user: ${updatedUser._id}`, {
+        name: updatedUser.name,
+        phoneNumber: updatedUser.phoneNumber
+      });
       
       return res.json({
         success: true,
@@ -500,6 +514,42 @@ router.post('/payment-methods', auth, async (req, res) => {
   }
 });
 
+// Get all payment methods
+router.get('/payment-methods', auth, async (req, res) => {
+  try {
+    // Find user by ID
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+    
+    // Return masked card information for security
+    const maskedPaymentMethods = user.paymentMethods ? user.paymentMethods.map(method => ({
+      _id: method._id,
+      cardName: method.cardName,
+      // Only show last 4 digits of card number
+      cardNumber: `**** **** **** ${method.cardNumber.slice(-4)}`,
+      expiryDate: method.expiryDate,
+      isDefault: method.isDefault,
+      createdAt: method.createdAt
+    })) : [];
+    
+    res.json({
+      success: true,
+      paymentMethods: maskedPaymentMethods
+    });
+  } catch (error) {
+    console.error('Get payment methods error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while fetching payment methods' 
+    });
+  }
+});
+
 // Delete payment method route
 router.delete('/payment-methods/:id', auth, async (req, res) => {
   try {
@@ -560,6 +610,115 @@ router.delete('/payment-methods/:id', auth, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Server error while deleting payment method' 
+    });
+  }
+});
+
+// Upload profile image
+router.post('/profile/image', auth, upload.single('profileImage'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+    
+    // Get the file path relative to the server root
+    const relativeFilePath = '/uploads/profiles/' + req.file.filename;
+    
+    console.log(`Uploading profile image for user: ${req.user._id}`, {
+      originalName: req.file.originalname,
+      savedAs: req.file.filename,
+      path: relativeFilePath
+    });
+    
+    // Update user profile with the new image path
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: { profileImage: relativeFilePath } },
+      { new: true, runValidators: true }
+    ).select('-password');
+    
+    if (!updatedUser) {
+      // Clean up the uploaded file if user not found
+      const filePath = path.join(__dirname, '..', relativeFilePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    console.log(`Profile image updated successfully for user: ${updatedUser._id}`);
+    
+    return res.json({
+      success: true,
+      message: 'Profile image updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error(`Error uploading profile image: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during image upload',
+      error: error.message
+    });
+  }
+});
+
+// Delete profile image
+router.delete('/profile/image', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Skip if no profile image exists
+    if (!user.profileImage || user.profileImage.includes('/default-avatar.jpg')) {
+      return res.status(400).json({
+        success: false,
+        message: 'No custom profile image to delete'
+      });
+    }
+    
+    // Store old file path for cleanup
+    const oldFilePath = path.join(__dirname, '..', user.profileImage);
+    
+    // Reset profile image to default
+    user.profileImage = '/default-avatar.jpg';
+    await user.save();
+    
+    // Try to delete the old file if it exists
+    try {
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
+        console.log(`Deleted old profile image file: ${oldFilePath}`);
+      }
+    } catch (fileError) {
+      // Just log file deletion errors but continue
+      console.error(`Error deleting profile image file: ${fileError.message}`);
+    }
+    
+    return res.json({
+      success: true,
+      message: 'Profile image deleted successfully',
+      user: user
+    });
+  } catch (error) {
+    console.error(`Error deleting profile image: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during image deletion',
+      error: error.message
     });
   }
 });

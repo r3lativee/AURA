@@ -1,0 +1,170 @@
+/* Media Queries for Home Page Responsiveness */
+@media (max-width: 1200px) {
+  .hero-section {
+    padding: 10rem 3rem;
+  }
+  
+  .hero-content h1 {
+    font-size: 5rem;
+  }
+  
+  .featured-section, 
+  .categories-section,
+  .testimonials-section,
+  .about-section,
+  .newsletter-section {
+    padding: 5rem 3rem;
+  }
+}
+
+@media (max-width: 991px) {
+  .hero-section {
+    padding: 8rem 2rem;
+    height: auto;
+    min-height: 500px;
+  }
+  
+  .hero-content h1 {
+    font-size: 4rem;
+  }
+  
+  .hero-content p {
+    font-size: 1rem;
+    max-width: 80%;
+  }
+  
+  .featured-section, 
+  .categories-section,
+  .testimonials-section,
+  .about-section,
+  .newsletter-section {
+    padding: 4rem 2rem;
+  }
+  
+  .featured-products {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+  
+  .categories-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+  
+  .testimonial-card {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 7rem 1.5rem 5rem;
+    min-height: 450px;
+  }
+  
+  .hero-content h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+  
+  .hero-content p {
+    font-size: 0.9rem;
+    max-width: 100%;
+    margin-bottom: 1.5rem;
+  }
+  
+  .hero-buttons {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .featured-section, 
+  .categories-section,
+  .testimonials-section,
+  .about-section,
+  .newsletter-section {
+    padding: 3rem 1.5rem;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .featured-products {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .categories-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .about-content {
+    flex-direction: column;
+  }
+  
+  .about-text {
+    padding: 0;
+    margin-top: 2rem;
+  }
+  
+  .newsletter-form {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .newsletter-input {
+    width: 100%;
+  }
+  
+  .testimonials-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 6rem 1rem 4rem;
+    min-height: 400px;
+  }
+  
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+  
+  .hero-content p {
+    font-size: 0.85rem;
+  }
+  
+  .featured-section, 
+  .categories-section,
+  .testimonials-section,
+  .about-section,
+  .newsletter-section {
+    padding: 2.5rem 1rem;
+  }
+  
+  .section-title {
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .product-card {
+    padding: 1rem;
+  }
+  
+  .product-card-title {
+    font-size: 1rem;
+  }
+  
+  .category-card {
+    height: 180px;
+  }
+  
+  .category-title {
+    font-size: 1.2rem;
+  }
+} 

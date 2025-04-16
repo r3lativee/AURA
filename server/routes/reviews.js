@@ -55,10 +55,10 @@ router.post('/', auth, async (req, res, next) => {
     });
 
     const savedReview = await newReview.save();
-    await savedReview
-      .populate('user', 'name profileImage')
-      .populate('product', 'name images')
-      .execPopulate();
+    
+    // Fix: Use separate populate calls or path option instead of chaining
+    await savedReview.populate('user', 'name profileImage');
+    await savedReview.populate('product', 'name images');
 
     res.status(201).json(savedReview);
   } catch (error) {
@@ -88,10 +88,9 @@ router.patch('/:id', auth, async (req, res, next) => {
     });
 
     const updatedReview = await review.save();
-    await updatedReview
-      .populate('user', 'name profileImage')
-      .populate('product', 'name images')
-      .execPopulate();
+    // Fix: Use separate populate calls
+    await updatedReview.populate('user', 'name profileImage');
+    await updatedReview.populate('product', 'name images');
 
     res.json(updatedReview);
   } catch (error) {
@@ -161,9 +160,8 @@ router.post('/:id/reply', adminAuth, async (req, res, next) => {
     });
 
     const updatedReview = await review.save();
-    await updatedReview
-      .populate('replies.user', 'name profileImage')
-      .execPopulate();
+    // Fix: Use single populate call
+    await updatedReview.populate('replies.user', 'name profileImage');
 
     res.status(201).json(updatedReview);
   } catch (error) {

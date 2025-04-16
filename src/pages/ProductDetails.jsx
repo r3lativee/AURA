@@ -24,11 +24,15 @@ import {
   FavoriteBorder as FavoriteBorderIcon,
   Favorite as FavoriteIcon,
   Share as ShareIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon,
 } from '@mui/icons-material';
 import { productsAPI } from '../services/api';
-import { useCart } from '../contexts/CartContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import ReviewSection from '../components/ReviewSection';
+import { motion } from 'framer-motion';
+import '../styles/pages/Products.css';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -123,6 +127,10 @@ const ProductDetails = () => {
     }).catch((error) => console.log('Error sharing', error));
   };
 
+  const handleQuantityChange = (delta) => {
+    setQuantity(Math.max(1, Math.min(10, quantity + delta)));
+  };
+
   if (loading) {
     return (
       <Container>
@@ -156,6 +164,8 @@ const ProductDetails = () => {
                   sx={{
                     cursor: 'pointer',
                     border: mainImage === index ? '2px solid primary.main' : 'none',
+                    borderRadius: '15px',
+                    overflow: 'hidden',
                   }}
                   onClick={() => setMainImage(index)}
                 >
@@ -174,7 +184,7 @@ const ProductDetails = () => {
                 position: 'relative',
                 height: 600,
                 backgroundColor: 'grey.100',
-                borderRadius: 1,
+                borderRadius: '15px',
                 overflow: 'hidden',
               }}
             >
@@ -207,10 +217,24 @@ const ProductDetails = () => {
                 </Box>
               </Box>
               <Box>
-                <IconButton onClick={handleToggleWishlist} color="primary">
+                <IconButton 
+                  onClick={handleToggleWishlist} 
+                  color="primary"
+                  sx={{ 
+                    borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.1)'
+                  }}
+                >
                   {product.isInWishlist ? <FavoriteIcon /> : <FavoriteBorderIcon />}
                 </IconButton>
-                <IconButton onClick={handleShare} color="primary">
+                <IconButton 
+                  onClick={handleShare} 
+                  color="primary"
+                  sx={{ 
+                    borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.1)'
+                  }}
+                >
                   <ShareIcon />
                 </IconButton>
               </Box>
@@ -235,7 +259,7 @@ const ProductDetails = () => {
                       label={`${product.discount}% OFF`}
                       color="error"
                       size="small"
-                      sx={{ ml: 1 }}
+                      sx={{ ml: 1, borderRadius: '50px' }}
                     />
                   </>
                 )}
@@ -250,70 +274,81 @@ const ProductDetails = () => {
 
             {/* Size Selection */}
             {product.sizes && product.sizes.length > 0 && (
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Size</InputLabel>
-                <Select
-                  value={selectedSize}
-                  onChange={(e) => setSelectedSize(e.target.value)}
-                  label="Size"
-                >
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Size
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   {product.sizes.map((size) => (
-                    <MenuItem key={size} value={size}>
+                    <Box
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`size-option ${selectedSize === size ? 'selected' : ''}`}
+                    >
                       {size}
-                    </MenuItem>
+                    </Box>
                   ))}
-                </Select>
-              </FormControl>
+                </Box>
+              </Box>
             )}
 
             {/* Color Selection */}
             {product.colors && product.colors.length > 0 && (
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Color</InputLabel>
-                <Select
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  label="Color"
-                >
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Color
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   {product.colors.map((color) => (
-                    <MenuItem key={color} value={color}>
+                    <Box
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`size-option ${selectedColor === color ? 'selected' : ''}`}
+                    >
                       {color}
-                    </MenuItem>
+                    </Box>
                   ))}
-                </Select>
-              </FormControl>
+                </Box>
+              </Box>
             )}
 
-            {/* Quantity Selection */}
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Quantity</InputLabel>
-              <Select
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                label="Quantity"
-              >
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <MenuItem key={num} value={num}>
-                    {num}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {/* Quantity Selector */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Quantity
+              </Typography>
+              <div className="quantity-selector">
+                <button 
+                  className="quantity-button"
+                  onClick={() => handleQuantityChange(-1)}
+                  disabled={quantity <= 1}
+                >
+                  <RemoveIcon fontSize="small" />
+                </button>
+                <div className="quantity-display">{quantity}</div>
+                <button 
+                  className="quantity-button"
+                  onClick={() => handleQuantityChange(1)}
+                  disabled={quantity >= 10}
+                >
+                  <AddIcon fontSize="small" />
+                </button>
+              </div>
+            </Box>
 
             {/* Add to Cart Button */}
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              fullWidth
+            <motion.button
+              className="add-to-cart-button"
               onClick={handleAddToCart}
               disabled={!product.inStock}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               {product.inStock ? 'Add to Cart' : 'Out of Stock'}
-            </Button>
+            </motion.button>
 
             {/* Additional Info */}
-            <Paper sx={{ mt: 3, p: 2 }}>
+            <Paper sx={{ mt: 3, p: 2, borderRadius: '15px' }}>
               <Typography variant="subtitle2" gutterBottom>
                 Product Details:
               </Typography>
@@ -341,6 +376,7 @@ const ProductDetails = () => {
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
+          sx={{ borderRadius: '15px' }}
         >
           {snackbar.message}
         </Alert>

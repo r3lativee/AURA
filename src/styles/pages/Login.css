@@ -5,56 +5,119 @@
   background: transparent;
   padding: 0;
   width: 100%;
+  perspective: 1000px;
 }
 
 .login-card {
   background: #1A1A1A;
-  padding: 3rem;
+  padding: 2.5rem;
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   width: 100%;
-  max-width: 800px;
+  max-width: 450px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at center,
+    rgba(100, 108, 255, 0.08),
+    transparent 30%
+  );
+  opacity: 0;
+  transform: scale(0.8);
+  animation: pulse 8s infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Lottie Animation styles */
+.lottie-container {
+  width: 100%;
+  height: 180px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.login-animation {
+  width: 200px;
+  height: 180px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+  z-index: 1;
 }
 
 .login-title {
   color: #ffffff;
-  font-size: 2.2rem;
-  margin-bottom: 1rem;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
   font-weight: 600;
+  background: linear-gradient(to right, #ffffff, #646cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .login-subtitle {
   color: #a0a0a0;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.8rem;
-  max-width: 600px;
+  gap: 1.5rem;
+  max-width: 400px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .form-group {
   position: relative;
+  overflow: hidden;
 }
 
 .form-input {
   width: 100%;
-  padding: 1.2rem;
+  padding: 1rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   z-index: 10;
   position: relative;
@@ -64,6 +127,7 @@
   outline: none;
   border-color: #646cff;
   background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .form-label {
@@ -75,30 +139,54 @@
   transition: all 0.3s ease;
   pointer-events: none;
   z-index: 5;
+  font-size: 0.95rem;
 }
 
 .form-input:focus ~ .form-label,
 .form-input:not(:placeholder-shown) ~ .form-label {
   top: 0;
   left: 0.8rem;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   padding: 0 0.4rem;
   background: #1A1A1A;
   border-radius: 4px;
   z-index: 15;
+  color: #646cff;
 }
 
 .login-button {
   background: #323232;
   color: white;
-  padding: 1.2rem;
+  padding: 1rem;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: all 0.5s ease;
+}
+
+.login-button:hover::before {
+  left: 100%;
 }
 
 .login-button:hover {
@@ -145,44 +233,77 @@
 
 .register-link {
   text-align: center;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .register-link a {
-  color: #ffffff;
+  color: #646cff;
   text-decoration: none;
   font-weight: 500;
   margin-left: 0.5rem;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.register-link a::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: #646cff;
+  transition: width 0.3s ease;
 }
 
 .register-link a:hover {
-  text-decoration: underline;
+  text-decoration: none;
+}
+
+.register-link a:hover::after {
+  width: 100%;
 }
 
 .forgot-password {
   display: flex;
   justify-content: flex-end;
-  margin-top: -0.5rem;
-  margin-bottom: 0.5rem;
+  margin-top: -0.8rem;
+  margin-bottom: 0.25rem;
 }
 
 .forgot-password a {
   color: #646cff;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-decoration: none;
   transition: color 0.2s ease;
+  position: relative;
+}
+
+.forgot-password a::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: #646cff;
+  transition: width 0.3s ease;
 }
 
 .forgot-password a:hover {
   color: #8f94ff;
-  text-decoration: underline;
+  text-decoration: none;
+}
+
+.forgot-password a:hover::after {
+  width: 100%;
 }
 
 /* OTP Section Styles */
 .otp-section {
-  margin: 20px auto;
+  margin: 15px auto;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -192,35 +313,36 @@
 .otp-inputs {
   display: flex;
   justify-content: center;
-  gap: 15px;
-  margin: 25px 0;
+  gap: 8px;
+  margin: 20px 0;
   width: 100%;
   flex-wrap: wrap;
 }
 
 .otp-input {
-  width: 60px;
-  height: 60px;
-  font-size: 1.5rem;
+  width: 50px;
+  height: 50px;
+  font-size: 1.3rem;
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   color: #ffffff;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .otp-input:focus {
   border-color: #646cff;
   background: rgba(255, 255, 255, 0.1);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .resend-otp {
   text-align: center;
-  margin-top: 15px;
-  font-size: 0.95rem;
+  margin-top: 10px;
+  font-size: 0.9rem;
   color: #a0a0a0;
 }
 
@@ -232,10 +354,26 @@
   cursor: pointer;
   padding: 5px;
   margin-left: 5px;
+  position: relative;
+}
+
+.resend-btn::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: #646cff;
+  transition: width 0.3s ease;
 }
 
 .resend-btn:hover {
-  text-decoration: underline;
+  text-decoration: none;
+}
+
+.resend-btn:hover::after {
+  width: 100%;
 }
 
 .resend-btn:disabled {
@@ -244,27 +382,57 @@
   text-decoration: none;
 }
 
+.resend-btn:disabled::after {
+  width: 0;
+}
+
 @media (max-width: 768px) {
   .login-card {
     padding: 2rem;
     max-width: 100%;
   }
   
-  .otp-input {
-    width: 50px;
-    height: 50px;
-    font-size: 1.2rem;
+  .lottie-container {
+    height: 150px;
   }
-}
-
-@media (max-width: 480px) {
-  .otp-inputs {
-    gap: 10px;
+  
+  .login-animation {
+    width: 170px;
+    height: 150px;
   }
   
   .otp-input {
     width: 45px;
     height: 45px;
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 1.5rem;
+  }
+  
+  .lottie-container {
+    height: 120px;
+  }
+  
+  .login-animation {
+    width: 140px;
+    height: 120px;
+  }
+  
+  .otp-inputs {
+    gap: 6px;
+  }
+  
+  .otp-input {
+    width: 40px;
+    height: 40px;
     font-size: 1.1rem;
+  }
+  
+  .login-title {
+    font-size: 1.8rem;
   }
 } 

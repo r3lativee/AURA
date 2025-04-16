@@ -1,116 +1,70 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { TextField } from '@mui/material';
 
-// Custom TextField component that maintains focus during typing
+// Simplified TextField component with focus lock
 const InputWithFocusLock = (props) => {
   const inputRef = useRef(null);
-  const [isFocused, setIsFocused] = useState(false);
-  const focusTimeoutRef = useRef(null);
   
-  // Handle focus event
-  const handleFocus = (e) => {
-    setIsFocused(true);
-    if (props.onFocus) props.onFocus(e);
-    
-    // Clear any existing timeout
-    if (focusTimeoutRef.current) {
-      clearTimeout(focusTimeoutRef.current);
-      focusTimeoutRef.current = null;
-    }
-  };
-  
-  // Handle blur event with delay
-  const handleBlur = (e) => {
-    // Don't let the input blur immediately
-    e.preventDefault();
-    
-    // Set a timeout to actually blur after 4 seconds of inactivity
-    focusTimeoutRef.current = setTimeout(() => {
-      setIsFocused(false);
-      if (props.onBlur) props.onBlur(e);
-    }, 4000);
-  };
-  
-  // Intercept change event to maintain focus
+  // Simple direct handling of input
   const handleChange = (e) => {
-    // Reset the blur timeout on each keystroke
-    if (focusTimeoutRef.current) {
-      clearTimeout(focusTimeoutRef.current);
+    // Make sure input stays focused when typing
+    if (inputRef.current) {
+      // Reset cursor position after React rerender
+      const cursorPosition = e.target.selectionStart;
+      
+      // Ensure we pass the change to parent
+      if (props.onChange) props.onChange(e);
+      
+      // After the state update, restore cursor position and focus
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          try {
+            // Try to restore cursor position
+            inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+          } catch (error) {
+            console.log("Could not set selection range:", error);
+          }
+        }
+      }, 0);
     }
-    
-    // Set new timeout - will blur after 4 seconds of no typing
-    focusTimeoutRef.current = setTimeout(() => {
-      setIsFocused(false);
-    }, 4000);
-    
-    // Ensure input stays focused
-    if (inputRef.current && document.activeElement !== inputRef.current) {
-      inputRef.current.focus();
-    }
-    
-    // Pass the change event to parent handler
-    if (props.onChange) props.onChange(e);
   };
-  
-  // Keep focus when value changes programmatically
-  useEffect(() => {
-    if (isFocused && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [props.value, isFocused]);
-  
-  // Handle keyup to reset focus timer
-  const handleKeyUp = (e) => {
-    // Reset the timer on keyup too
-    if (focusTimeoutRef.current) {
-      clearTimeout(focusTimeoutRef.current);
-    }
-    
-    // Set new timeout
-    focusTimeoutRef.current = setTimeout(() => {
-      setIsFocused(false);
-    }, 4000);
-    
-    if (props.onKeyUp) props.onKeyUp(e);
-  };
-  
-  // Clean up the timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (focusTimeoutRef.current) {
-        clearTimeout(focusTimeoutRef.current);
-      }
-    };
-  }, []);
   
   return (
     <TextField
       {...props}
       inputRef={inputRef}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
+      onFocus={(e) => {
+        // Basic focus handler
+        if (props.onFocus) props.onFocus(e);
+      }}
       onChange={handleChange}
-      onKeyUp={handleKeyUp}
       InputProps={{
         ...props.InputProps,
-        // Add special styles to prevent focus loss
+        // Simple focus styles
         style: {
           ...props.InputProps?.style,
-          willChange: 'auto',
+          zIndex: 100,
         }
       }}
       inputProps={{
         ...props.inputProps,
-        // Prevent input from losing focus
+        // Disable autocomplete to avoid browser interference
         autoComplete: 'off',
-        onMouseDown: (e) => {
-          // Prevent losing focus when clicking within the input
-          if (isFocused) {
-            e.preventDefault();
-            inputRef.current.focus();
-          }
-          if (props.inputProps?.onMouseDown) props.inputProps.onMouseDown(e);
+        style: {
+          ...props.inputProps?.style,
         }
+      }}
+      sx={{
+        '& .MuiInputBase-root': {
+          position: 'relative',
+          zIndex: 100,
+        },
+        '& .MuiInputBase-input': {
+          position: 'relative',
+          zIndex: 101,
+        },
+        ...props.sx
       }}
     />
   );

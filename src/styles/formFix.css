@@ -16,6 +16,7 @@ select,
   transition: background-color 0.3s, border-color 0.3s !important;
   animation: none !important;
   will-change: auto !important;
+  isolation: isolate !important;
 }
 
 /* Ensure inputs within MUI components are properly visible */
@@ -27,24 +28,34 @@ select,
   animation: none !important;
   will-change: auto !important;
   pointer-events: auto !important;
+  touch-action: manipulation !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
 }
 
 /* Fix focus styles for MUI */
 .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
   border-color: #FFFFFF !important;
   border-width: 2px !important;
+  z-index: 1 !important;
 }
 
 /* Ensure form container elements don't get transformed by GSAP */
 form,
 .form-container,
 .MuiFormControl-root,
-.MuiTextField-root {
+.MuiTextField-root,
+.checkout-form-container,
+.form-focus-fix-container {
   transform: none !important;
   backface-visibility: visible !important;
   perspective: none !important;
   will-change: auto !important;
   animation: none !important;
+  position: relative !important;
+  z-index: 5 !important;
 }
 
 /* Prevent any GSAP animations from affecting form element parents */
@@ -52,12 +63,13 @@ form,
 .MuiContainer-root,
 .MuiPaper-root,
 .MuiBox-root {
-  transform: none !important;
+  transform: translate3d(0, 0, 0) !important;
+  backface-visibility: visible !important;
 }
 
 /* Set a higher z-index for components when they have focus */
 .Mui-focused {
-  z-index: 20 !important;
+  z-index: 50 !important;
 }
 
 /* Disable strict-mode double render effects on inputs */
@@ -66,6 +78,7 @@ input,
 textarea,
 select {
   transition-duration: 0s !important;
+  transform: translate3d(0, 0, 0) !important;
 }
 
 /* Prevent parent elements from stealing focus */
@@ -90,9 +103,11 @@ form *,
 }
 
 /* Ensure form containers don't interfere with input events */
-form {
+form,
+.form-focus-fix-container {
   isolation: isolate;
   contain: content;
+  transform: translate3d(0, 0, 0) !important;
 }
 
 /* Fix for React re-renders on controlled inputs */
@@ -104,6 +119,7 @@ input[type="tel"],
 textarea {
   -webkit-font-smoothing: antialiased !important;
   backface-visibility: hidden !important;
+  transform: translate3d(0, 0, 0) !important;
 }
 
 /* Add these fixes for React StrictMode input issues */
@@ -113,13 +129,30 @@ body:has(input:focus),
 body:has(textarea:focus),
 body:has(select:focus),
 body:has(.MuiInputBase-input:focus) {
-  -webkit-transform: translate3d(0, 0, 0);
-  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  transform: translate3d(0, 0, 0) !important;
 }
 
 /* Improve focus management */
 .MuiInputBase-root:focus-within {
+  z-index: 50 !important;
+}
+
+/* Specific fixes for checkout page */
+.checkout-form-container {
+  isolation: isolate !important;
+  contain: content !important;
+  transform: translate3d(0, 0, 0) !important;
   z-index: 30 !important;
+}
+
+.checkout-form-container input,
+.checkout-form-container .MuiInputBase-input {
+  z-index: 31 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  transform: translate3d(0, 0, 0) !important;
 }
 
 /* Add these at the end of the file */
@@ -144,4 +177,47 @@ body:has(.MuiInputBase-input:focus) {
   input, select, textarea {
     transform: translateZ(0);
   }
+}
+
+/* Extreme focus fix - apply when absolutely nothing else works */
+.checkout-form-container .MuiInputBase-input:focus {
+  isolation: isolate !important;
+  position: relative !important;
+  z-index: 999 !important;
+  outline: 2px solid rgba(255, 255, 255, 0.2) !important;
+  background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Force inputs to keep user-select enabled and pointer-events active */
+.MuiInputBase-input {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  z-index: 999 !important;
+}
+
+/* Add direct fix to checkout page inputs */
+.checkout-form-container .MuiInputBase-input {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  z-index: 999 !important;
+  transform: none !important;
+}
+
+/* Most extreme fix - prevent checkout inputs from being modified by any parent styles */
+.form-focus-fix-container input,
+.form-focus-fix-container textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  animation: none !important;
+  transition: none !important;
+  will-change: auto !important;
 } 

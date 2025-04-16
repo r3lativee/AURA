@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -24,6 +24,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api, { ordersAPI, authAPI } from '../services/api';
+import InputWithFocusLock from '../components/InputWithFocusLock';
+import '../styles/formFix.css';
 
 const steps = ['Shipping address', 'Payment details', 'Review your order'];
 
@@ -32,6 +34,8 @@ const Checkout = () => {
   const { cart, total, clearCart } = useCart();
   const { user, isAuthenticated, updateProfile } = useAuth();
   const navigate = useNavigate();
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState([]);
+  const [useExistingCard, setUseExistingCard] = useState(false);
   
   // Check if user is authenticated
   useEffect(() => {
@@ -40,6 +44,28 @@ const Checkout = () => {
       navigate('/login');
     }
   }, [isAuthenticated, navigate]);
+  
+  // Fetch saved payment methods if user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchPaymentMethods();
+    }
+  }, [isAuthenticated]);
+  
+  // Function to fetch payment methods
+  const fetchPaymentMethods = async () => {
+    try {
+      const response = await authAPI.getPaymentMethods();
+      if (response.data?.success && response.data?.paymentMethods) {
+        setSavedPaymentMethods(response.data.paymentMethods);
+        setUseExistingCard(response.data.paymentMethods.length > 0);
+      }
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      // Don't show an error toast here, just log it
+      // The user can still proceed with checkout by entering payment info
+    }
+  };
   
   // Initialize shipping data with user's default address if available
   const [shippingData, setShippingData] = useState({
@@ -170,7 +196,25 @@ const Checkout = () => {
   const handlePaymentSubmit = (e) => {
     e.preventDefault();
     
-    // Validate payment fields
+    if (useExistingCard && savedPaymentMethods.length > 0) {
+      // When using existing card, just validate CVV
+      if (!paymentData.cvv) {
+        toast.error('Please enter the card CVV');
+        return;
+      }
+      
+      // Validate CVV
+      const cvvRegex = /^\d{3,4}$/;
+      if (!cvvRegex.test(paymentData.cvv)) {
+        toast.error('Please enter a valid CVV (3-4 digits)');
+        return;
+      }
+      
+      handleNext();
+      return;
+    }
+    
+    // Validate all payment fields for new card
     if (!paymentData.cardName || !paymentData.cardNumber || !paymentData.expDate || !paymentData.cvv) {
       toast.error('Please fill all payment details');
       return;
@@ -193,11 +237,41 @@ const Checkout = () => {
     // Validate CVV
     const cvvRegex = /^\d{3,4}$/;
     if (!cvvRegex.test(paymentData.cvv)) {
-      toast.error('Please enter a valid CVV');
+      toast.error('Please enter a valid CVV (3-4 digits)');
       return;
     }
     
+    // Save payment method if requested
+    if (paymentData.saveCard) {
+      savePaymentMethod();
+    }
+    
     handleNext();
+  };
+  
+  // Function to save a new payment method
+  const savePaymentMethod = async () => {
+    try {
+      const paymentMethodData = {
+        cardName: paymentData.cardName,
+        cardNumber: paymentData.cardNumber,
+        expiryDate: paymentData.expDate,
+        cvv: paymentData.cvv,
+        isDefault: savedPaymentMethods.length === 0 // Make default if first card
+      };
+      
+      const response = await authAPI.addPaymentMethod(paymentMethodData);
+      
+      if (response.data?.success) {
+        toast.success('Payment method saved');
+        // Refresh payment methods
+        fetchPaymentMethods();
+      }
+    } catch (error) {
+      console.error('Failed to save payment method:', error);
+      toast.error('Failed to save payment method');
+      // Don't block checkout if saving fails
+    }
   };
 
   const handleOrderSubmit = async () => {
@@ -213,9 +287,12 @@ const Checkout = () => {
             country: shippingData.country
           };
       
+      // Extract cart items array safely
+      const cartItems = Array.isArray(cart) ? cart : (cart?.items || []);
+      
       // Create order object
       const orderData = {
-        items: cart.map(item => ({
+        items: cartItems.map(item => ({
           productId: item.productId,
           name: item.name,
           price: item.price,
@@ -232,6 +309,8 @@ const Checkout = () => {
         }
       };
       
+      console.log('Submitting order with data:', JSON.stringify(orderData));
+      
       // Make API call to create order
       const response = await ordersAPI.create(orderData);
       
@@ -247,6 +326,22 @@ const Checkout = () => {
       toast.error(error.response?.data?.message || 'Failed to place order. Please try again.');
     }
   };
+
+  // Modify the setShippingData handling to use a memoized callback to avoid re-renders
+  const updateShippingData = useCallback((field, value) => {
+    setShippingData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  // Also for payment data
+  const updatePaymentData = useCallback((field, value) => {
+    setPaymentData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
 
   const ShippingForm = () => (
     <form onSubmit={handleShippingSubmit}>
@@ -292,30 +387,30 @@ const Checkout = () => {
         {(!shippingData.useExistingAddress || !user?.addresses || user.addresses.length === 0) && (
           <>
             <Grid item xs={12}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="fullName"
                 name="fullName"
                 label="Full Name"
                 fullWidth
                 value={shippingData.fullName}
-                onChange={(e) => setShippingData({ ...shippingData, fullName: e.target.value })}
+                onChange={(e) => updateShippingData('fullName', e.target.value)}
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="phoneNumber"
                 name="phoneNumber"
                 label="Phone Number"
                 fullWidth
                 value={shippingData.phoneNumber}
-                onChange={(e) => setShippingData({ ...shippingData, phoneNumber: e.target.value })}
+                onChange={(e) => updateShippingData('phoneNumber', e.target.value)}
                 helperText="Required for delivery updates"
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="street"
                 name="street"
@@ -324,53 +419,53 @@ const Checkout = () => {
                 multiline
                 rows={2}
                 value={shippingData.street}
-                onChange={(e) => setShippingData({ ...shippingData, street: e.target.value })}
+                onChange={(e) => updateShippingData('street', e.target.value)}
                 helperText="House/Flat No., Street, Landmark"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="city"
                 name="city"
                 label="City"
                 fullWidth
                 value={shippingData.city}
-                onChange={(e) => setShippingData({ ...shippingData, city: e.target.value })}
+                onChange={(e) => updateShippingData('city', e.target.value)}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="state"
                 name="state"
                 label="State"
                 fullWidth
                 value={shippingData.state}
-                onChange={(e) => setShippingData({ ...shippingData, state: e.target.value })}
+                onChange={(e) => updateShippingData('state', e.target.value)}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="pincode"
                 name="pincode"
                 label="Pincode"
                 fullWidth
                 value={shippingData.pincode}
-                onChange={(e) => setShippingData({ ...shippingData, pincode: e.target.value })}
+                onChange={(e) => updateShippingData('pincode', e.target.value)}
                 helperText="6-digit pincode"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
+              <InputWithFocusLock
                 required
                 id="country"
                 name="country"
                 label="Country"
                 fullWidth
                 value={shippingData.country}
-                onChange={(e) => setShippingData({ ...shippingData, country: e.target.value })}
+                onChange={(e) => updateShippingData('country', e.target.value)}
               />
             </Grid>
             <Grid item xs={12}>
@@ -379,7 +474,7 @@ const Checkout = () => {
                   <Checkbox
                     color="primary"
                     checked={shippingData.saveAddress}
-                    onChange={(e) => setShippingData({ ...shippingData, saveAddress: e.target.checked })}
+                    onChange={(e) => updateShippingData('saveAddress', e.target.checked)}
                   />
                 }
                 label="Save this address for future purchases"
@@ -405,60 +500,121 @@ const Checkout = () => {
         Payment method
       </Typography>
       <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <TextField
-            required
-            id="cardName"
-            name="cardName"
-            label="Name on card"
-            fullWidth
-            value={paymentData.cardName}
-            onChange={(e) => setPaymentData({ ...paymentData, cardName: e.target.value })}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            required
-            id="cardNumber"
-            name="cardNumber"
-            label="Card number"
-            fullWidth
-            value={paymentData.cardNumber}
-            onChange={(e) => setPaymentData({ ...paymentData, cardNumber: e.target.value })}
-            helperText="16-digit number without spaces"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            required
-            id="expDate"
-            name="expDate"
-            label="Expiry date"
-            fullWidth
-            value={paymentData.expDate}
-            onChange={(e) => setPaymentData({ ...paymentData, expDate: e.target.value })}
-            helperText="MM/YY"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            required
-            id="cvv"
-            name="cvv"
-            label="CVV"
-            fullWidth
-            value={paymentData.cvv}
-            onChange={(e) => setPaymentData({ ...paymentData, cvv: e.target.value })}
-            helperText="Last 3 or 4 digits on back of card"
-          />
-        </Grid>
+        {savedPaymentMethods.length > 0 && (
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={useExistingCard}
+                  onChange={(e) => setUseExistingCard(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="Use saved payment method"
+            />
+            
+            {useExistingCard && (
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel>Select Card</InputLabel>
+                <Select
+                  value={paymentData.selectedCardIndex || 0}
+                  onChange={(e) => {
+                    const index = e.target.value;
+                    const selectedCard = savedPaymentMethods[index];
+                    updatePaymentData('selectedCardIndex', index);
+                    updatePaymentData('cardName', selectedCard.cardName);
+                    updatePaymentData('cardNumber', selectedCard.cardNumber.slice(-4)); // We only have last 4 digits
+                    updatePaymentData('expDate', selectedCard.expiryDate);
+                    updatePaymentData('cvv', ''); // User needs to re-enter CVV for security
+                  }}
+                  label="Select Card"
+                >
+                  {savedPaymentMethods.map((card, index) => (
+                    <MenuItem key={index} value={index}>
+                      {card.cardNumber} - {card.cardName}
+                      {card.isDefault ? ' (Default)' : ''}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+          </Grid>
+        )}
+        
+        {(!useExistingCard || savedPaymentMethods.length === 0) && (
+          <>
+            <Grid item xs={12}>
+              <InputWithFocusLock
+                required
+                id="cardName"
+                name="cardName"
+                label="Name on card"
+                fullWidth
+                value={paymentData.cardName}
+                onChange={(e) => updatePaymentData('cardName', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <InputWithFocusLock
+                required
+                id="cardNumber"
+                name="cardNumber"
+                label="Card number"
+                fullWidth
+                value={paymentData.cardNumber}
+                onChange={(e) => updatePaymentData('cardNumber', e.target.value)}
+                helperText="16-digit number without spaces"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <InputWithFocusLock
+                required
+                id="expDate"
+                name="expDate"
+                label="Expiry date"
+                fullWidth
+                value={paymentData.expDate}
+                onChange={(e) => updatePaymentData('expDate', e.target.value)}
+                helperText="MM/YY"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <InputWithFocusLock
+                required
+                id="cvv"
+                name="cvv"
+                label="CVV"
+                fullWidth
+                value={paymentData.cvv}
+                onChange={(e) => updatePaymentData('cvv', e.target.value)}
+                helperText="Last 3 or 4 digits on back of card"
+              />
+            </Grid>
+          </>
+        )}
+        
+        {useExistingCard && (
+          <Grid item xs={12}>
+            <InputWithFocusLock
+              required
+              id="cvv"
+              name="cvv"
+              label="CVV"
+              fullWidth
+              value={paymentData.cvv}
+              onChange={(e) => updatePaymentData('cvv', e.target.value)}
+              helperText="Please re-enter CVV for security"
+            />
+          </Grid>
+        )}
+        
         <Grid item xs={12}>
           <FormControlLabel
             control={
               <Checkbox
                 color="primary"
                 checked={paymentData.saveCard}
-                onChange={(e) => setPaymentData({ ...paymentData, saveCard: e.target.checked })}
+                onChange={(e) => updatePaymentData('saveCard', e.target.checked)}
               />
             }
             label="Remember credit card details for next time"
@@ -484,6 +640,11 @@ const Checkout = () => {
           pincode: shippingData.pincode,
           country: shippingData.country
         };
+        
+    // Extract cart items array safely
+    const cartItems = Array.isArray(cart) ? cart : (cart?.items || []);
+    console.log("Cart type:", typeof cart, Array.isArray(cart) ? "is array" : "not array", 
+                "Items count:", cartItems.length);
         
     return (
       <>
@@ -531,11 +692,11 @@ const Checkout = () => {
         <Typography variant="subtitle1" fontWeight="bold">
           Order Items
         </Typography>
-        {cart.length === 0 ? (
+        {cartItems.length === 0 ? (
           <Alert severity="warning">Your cart is empty!</Alert>
         ) : (
           <>
-            {cart.map((item) => (
+            {cartItems.map((item) => (
               <Box key={item.productId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Box>
                   <Typography variant="body1">
@@ -566,7 +727,7 @@ const Checkout = () => {
             variant="contained"
             color="primary"
             onClick={handleOrderSubmit}
-            disabled={cart.length === 0}
+            disabled={cartItems.length === 0}
           >
             Place Order
           </Button>
@@ -594,32 +755,47 @@ const Checkout = () => {
   const getStepContent = (step) => {
     switch (step) {
       case 0:
-        return <ShippingForm />;
+        return <ShippingForm key="shipping-form" />;
       case 1:
-        return <PaymentForm />;
+        return <PaymentForm key="payment-form" />;
       case 2:
-        return <ReviewOrder />;
+        return <ReviewOrder key="review-form" />;
       case 3:
-        return <OrderConfirmation />;
+        return <OrderConfirmation key="confirmation" />;
       default:
         throw new Error('Unknown step');
     }
   };
 
   return (
-    <Container component="main" maxWidth="lg" sx={{ pt: '200px', pb: 8 }}>
-      <Paper sx={{ p: { xs: 2, md: 3 }, mt: 3 }}>
-        <Typography component="h1" variant="h4" align="center" gutterBottom>
+    <Container component="main" maxWidth="md" sx={{ mb: 8, py: 8, pt: '200px' }}>
+      <Paper 
+        sx={{ 
+          px: { xs: 2, md: 4 }, 
+          py: { xs: 3, md: 5 },
+          position: 'relative',
+          zIndex: 5,
+          transform: 'none !important',
+          isolation: 'isolate',
+          backgroundColor: '#1A1A1A',
+          borderRadius: '15px',
+          border: '1px solid rgba(255, 255, 255, 0.05)'
+        }}
+        className="checkout-form-container"
+      >
+        <Typography component="h1" variant="h4" align="center" sx={{ mb: 4, fontWeight: 'medium' }}>
           Checkout
         </Typography>
-        <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>
+        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 5 }}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
             </Step>
           ))}
         </Stepper>
-        {getStepContent(activeStep)}
+        <div className="form-focus-fix-container" style={{ position: 'relative', zIndex: 10, transform: 'none !important' }}>
+          {getStepContent(activeStep)}
+        </div>
       </Paper>
     </Container>
   );

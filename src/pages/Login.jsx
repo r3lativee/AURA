@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Container } from '@mui/material';
+import { Container, Typography, Button, TextField, Box, InputAdornment, IconButton } from '@mui/material';
 import Alert from '@mui/material/Alert';
 import { useAuth } from '../context/AuthContext';
 import '../styles/pages/Login.css';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import Lottie from 'lottie-react';
+import loginAnimation from '../assets/animations/login-animation.json';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,6 +22,52 @@ const Login = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        duration: 0.6,
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      } 
+    },
+    exit: {
+      opacity: 0,
+      y: 20,
+      transition: { duration: 0.3 }
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1,
+      transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+  };
+  
+  const buttonVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 400, 
+        damping: 22 
+      }
+    },
+    hover: { 
+      scale: 1.03, 
+      boxShadow: "0 8px 15px rgba(0, 0, 0, 0.3)",
+      transition: { type: "spring", stiffness: 400, damping: 10 }
+    },
+    tap: { scale: 0.97 }
+  };
 
   useEffect(() => {
     // If user is already logged in, redirect to home
@@ -146,25 +196,57 @@ const Login = () => {
   };
 
   return (
-    <Container component="main" maxWidth="md" sx={{ pt: '150px', pb: 8 }}>
-      <div className="login-container">
-        <div className="login-card">
-          <div className="login-header">
-            <h2 className="login-title">Welcome Back</h2>
-            <p className="login-subtitle">
-              {showOtpVerification 
-                ? "Enter the verification code sent to your email" 
-                : "Sign in to continue shopping"}
-            </p>
-          </div>
+    <Container component="main" maxWidth="sm" sx={{ pt: '120px', pb: 4 }}>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="login-container"
+      >
+        <motion.div
+          className="login-card"
+          variants={itemVariants}
+        >
+          <motion.div 
+            className="lottie-container"
+            variants={itemVariants}
+            custom={1}
+          >
+            <Lottie 
+              animationData={loginAnimation} 
+              className="login-animation" 
+            />
+          </motion.div>
 
-          {error && <Alert severity="error" className="error-message">{error}</Alert>}
+          <motion.div variants={itemVariants} custom={2}>
+            <Typography variant="h4" component="h1" className="login-header">
+              Login
+            </Typography>
+          </motion.div>
 
-          <form onSubmit={showOtpVerification ? handleVerifyAndLogin : handleSubmit} className="login-form">
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Alert severity="error" className="error-message">{error}</Alert>
+            </motion.div>
+          )}
+
+          <AnimatePresence mode="wait">
             {!showOtpVerification ? (
               // Email and Password Form
-              <>
-                <div className="form-group">
+              <motion.form 
+                key="login-form"
+                onSubmit={handleSubmit} 
+                className="login-form"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <motion.div className="form-group" variants={itemVariants}>
                   <input
                     type="email"
                     id="email"
@@ -176,9 +258,9 @@ const Login = () => {
                     required
                   />
                   <label htmlFor="email" className="form-label">Email</label>
-                </div>
+                </motion.div>
                 
-                <div className="form-group">
+                <motion.div className="form-group" variants={itemVariants}>
                   <input
                     type="password"
                     id="password"
@@ -190,30 +272,61 @@ const Login = () => {
                     required
                   />
                   <label htmlFor="password" className="form-label">Password</label>
-                </div>
+                </motion.div>
 
-                <div className="forgot-password">
+                <motion.div 
+                  className="forgot-password" 
+                  variants={itemVariants}
+                >
                   <Link to="/forgot-password">Forgot Password?</Link>
-                </div>
+                </motion.div>
 
-                <button
+                <motion.button
                   type="submit"
                   className="login-button"
                   disabled={loading}
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
                 >
                   {loading ? 'Sending Code...' : 'Sign In'}
-                </button>
-              </>
+                </motion.button>
+                
+                <motion.div 
+                  className="register-link"
+                  variants={itemVariants}
+                >
+                  Don't have an account?
+                  <Link to="/register">Sign up</Link>
+                </motion.div>
+              </motion.form>
             ) : (
               // OTP Verification Form
-              <>
-                <div className="otp-section">
-                  <p style={{ textAlign: 'center', color: '#a0a0a0', marginBottom: '15px' }}>
+              <motion.form 
+                key="otp-form"
+                onSubmit={handleVerifyAndLogin} 
+                className="login-form"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <motion.div 
+                  className="otp-section"
+                  variants={itemVariants}
+                >
+                  <motion.p 
+                    style={{ textAlign: 'center', color: '#a0a0a0', marginBottom: '15px' }}
+                    variants={itemVariants}
+                  >
                     We've sent a verification code to <strong>{formData.email}</strong>
-                  </p>
-                  <div className="otp-inputs">
+                  </motion.p>
+                  <motion.div 
+                    className="otp-inputs"
+                    variants={itemVariants}
+                  >
                     {otp.map((digit, index) => (
-                      <input
+                      <motion.input
                         key={index}
                         id={`otp-${index}`}
                         type="text"
@@ -223,52 +336,62 @@ const Login = () => {
                         onChange={(e) => handleOtpChange(e.target.value, index)}
                         onKeyDown={(e) => handleOtpKeyDown(e, index)}
                         autoFocus={index === 0}
+                        variants={itemVariants}
+                        whileFocus={{ scale: 1.05, borderColor: "#646cff" }}
                       />
                     ))}
-                  </div>
-                  <div className="resend-otp">
+                  </motion.div>
+                  <motion.div 
+                    className="resend-otp"
+                    variants={itemVariants}
+                  >
                     Didn't receive the code?
-                    <button
+                    <motion.button
                       type="button"
                       className="resend-btn"
                       onClick={handleResendOtp}
                       disabled={loading}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
                       Resend
-                    </button>
-                  </div>
-                </div>
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
 
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <button
+                <motion.div 
+                  style={{ display: 'flex', gap: '15px' }}
+                  variants={itemVariants}
+                >
+                  <motion.button
                     type="button"
                     className="login-button"
                     onClick={() => setShowOtpVerification(false)}
                     disabled={loading}
                     style={{ flex: '1', background: '#222222' }}
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
                   >
                     Back
-                  </button>
-                  
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
                     className="login-button"
                     disabled={loading}
                     style={{ flex: '1' }}
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
                   >
                     {loading ? 'Verifying...' : 'Verify & Sign In'}
-                  </button>
-                </div>
-              </>
+                  </motion.button>
+                </motion.div>
+              </motion.form>
             )}
-          </form>
-
-          <div className="register-link">
-            Don't have an account?
-            <Link to="/register">Create Account</Link>
-          </div>
-        </div>
-      </div>
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
     </Container>
   );
 };

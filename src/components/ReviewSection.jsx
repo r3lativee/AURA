@@ -35,7 +35,7 @@ import {
   StarBorder,
   StarHalf
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { reviewsAPI } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -124,7 +124,21 @@ const ReviewSection = ({ productId }) => {
 
     try {
       setSubmitting(true);
-      await reviewsAPI.create(productId, newReview);
+      
+      // Ensure the review data is properly formatted for the API
+      const reviewData = {
+        productId: productId, // Make sure productId is properly passed
+        rating: newReview.rating,
+        title: newReview.title,
+        review: newReview.review
+      };
+      
+      // Use the reviewsAPI.create method with the correct format
+      await reviewsAPI.create(productId, {
+        rating: newReview.rating,
+        title: newReview.title,
+        review: newReview.review
+      });
       
       setOpenDialog(false);
       setNewReview({ 
@@ -139,7 +153,14 @@ const ReviewSection = ({ productId }) => {
       fetchReviews();
     } catch (error) {
       console.error('Failed to submit review:', error);
-      toast.error(error.response?.data?.message || 'Failed to submit review. Please try again.');
+      
+      // Handle unauthorized errors specifically
+      if (error.response?.status === 401) {
+        toast.error('Your session has expired. Please log in again.');
+        // Optionally redirect to login
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to submit review. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }

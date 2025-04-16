@@ -27,6 +27,7 @@ const auth = async (req, res, next) => {
       userId: user._id, // For backward compatibility
       name: user.name,
       email: user.email,
+      phoneNumber: user.phoneNumber || '',
       isAdmin: user.isAdmin || false
     };
     
