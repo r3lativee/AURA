@@ -195,7 +195,22 @@ export const authAPI = {
     console.log('API Service: Deleting profile image');
     return api.delete('/users/profile/image');
   },
-  getStats: () => api.get('/admin/users/stats'),
+  getStats: async () => {
+    try {
+      const response = await api.get('/admin/users/stats');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch user stats:', error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: {
+          totalUsers: 0,
+          newUsers: 0,
+          activeUsers: 0
+        }
+      };
+    }
+  },
   // Admin user management
   getAllUsers: () => api.get('/admin/users'),
   updateUser: (userId, data) => api.put(`/admin/users/${userId}`, data),
@@ -248,9 +263,50 @@ export const productsAPI = {
   create: (data) => api.post('/admin/products', data),
   update: (id, data) => api.put(`/admin/products/${id}`, data),
   delete: (id) => api.delete(`/admin/products/${id}`),
-  getStats: () => api.get('/admin/products/stats'),
-  getTopSelling: () => api.get('/admin/products/top-selling'),
-  getLowStock: () => api.get('/admin/products/low-stock'),
+  getStats: async () => {
+    try {
+      const response = await api.get('/admin/products/stats');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch product stats:', error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: {
+          totalProducts: 0,
+          outOfStock: 0,
+          lowStock: 0
+        }
+      };
+    }
+  },
+  getTopSelling: async () => {
+    try {
+      const response = await api.get('/admin/products/top-selling');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch top selling products:', error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: {
+          products: []
+        }
+      };
+    }
+  },
+  getLowStock: async () => {
+    try {
+      const response = await api.get('/admin/products/low-stock');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch low stock products:', error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: {
+          products: []
+        }
+      };
+    }
+  },
 };
 
 // Cart API
@@ -347,12 +403,55 @@ export const ordersAPI = {
   create: (orderData) => api.post('/orders', orderData),
   getAll: () => api.get('/orders'),
   getOne: (id) => api.get(`/orders/${id}`),
-  getStats: () => api.get('/admin/orders/stats'),
+  getStats: async () => {
+    try {
+      const response = await api.get('/admin/orders/stats');
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch order stats:', error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: {
+          totalOrders: 0,
+          totalRevenue: 0,
+          recentOrders: []
+        }
+      };
+    }
+  },
   // Admin orders management
-  getAllOrders: (params) => api.get('/admin/orders', { params }),
-  updateOrderStatus: (orderId, status) => api.patch(`/admin/orders/${orderId}/status`, { status }),
-  getRevenueReport: (period = 'monthly') => api.get(`/admin/reports/revenue?period=${period}`),
+  getAllOrders: async (params) => {
+    try {
+      const response = await api.get('/admin/orders', { params });
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch all orders:', error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: []
+      };
+    }
+  },
+  updateOrderStatus: (orderId, data) => api.patch(`/admin/orders/${orderId}/status`, data),
+  updateStatus: (orderId, data) => api.patch(`/admin/orders/${orderId}`, data), // Backward compatibility
+  getRevenueReport: async (period = 'monthly') => {
+    try {
+      const response = await api.get(`/admin/reports/revenue?period=${period}`);
+      return response;
+    } catch (error) {
+      console.error(`Failed to fetch ${period} revenue report:`, error);
+      // Return a default structure to prevent UI errors
+      return {
+        data: {
+          revenueData: [],
+          salesData: []
+        }
+      };
+    }
+  },
   getSalesReport: (period = 'monthly') => api.get(`/admin/reports/sales?period=${period}`),
+  createRazorpayOrder: (orderData) => api.post('/orders/razorpay', orderData),
+  verifyRazorpayPayment: (paymentData) => api.post('/orders/razorpay/verify', paymentData),
 };
 
 export default api; 

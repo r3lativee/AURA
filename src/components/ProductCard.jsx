@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FiShoppingCart, FiHeart } from 'react-icons/fi';
@@ -7,10 +7,29 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 
 const ProductCard = ({ product }) => {
-  const [showModel, setShowModel] = useState(false);
+  const [modelLoaded, setModelLoaded] = useState(false);
+  const [modelError, setModelError] = useState(false);
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
+
+  // Load model-viewer Web Component if it doesn't exist
+  useEffect(() => {
+    if (!document.querySelector('script[src*="model-viewer"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
+      script.type = 'module';
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Effect to validate model URL before attempting to load it
+  useEffect(() => {
+    // Validate if model URL looks like a valid path
+    if (!product.modelUrl || typeof product.modelUrl !== 'string' || !product.modelUrl.endsWith('.glb')) {
+      setModelError(true);
+    }
+  }, [product]);
 
   // Animation variants
   const cardVariants = {
@@ -52,10 +71,29 @@ const ProductCard = ({ product }) => {
     addToCart(product, 1, product.sizes ? product.sizes[0] : null);
   };
 
+  const handleModelLoad = () => {
+    setModelLoaded(true);
+  };
+
+  const handleModelError = () => {
+    setModelError(true);
+  };
+
   // Image path including api url if needed
   const imagePath = product.images && product.images[0]?.startsWith('http') 
     ? product.images[0] 
     : `${import.meta.env.VITE_API_URL || ''}${product.images && product.images[0]}`;
+
+  // Function to validate URL to prevent HTTP 404 errors showing as JSON parsing errors
+  const validateModelUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    
+    // Make sure URL starts with / if it's a relative path
+    if (!url.startsWith('/') && !url.startsWith('http')) {
+      return `/${url}`;
+    }
+    return url;
+  };
 
   return (
     <motion.div
@@ -65,17 +103,36 @@ const ProductCard = ({ product }) => {
       animate="visible"
       whileHover="hover"
       onClick={() => navigate(`/product/${product._id}`)}
-      onMouseEnter={() => setShowModel(true)}
-      onMouseLeave={() => setShowModel(false)}
     >
       <div className="work-image" style={{ position: 'relative', height: '300px', width: '100%' }}>
-        {/* 3D Model shown on hover */}
-        {showModel && product.modelUrl ? (
+        {/* Only attempt to show 3D model if URL is valid and no previous errors */}
+        {product.modelUrl && !modelError ? (
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
-            <ProductModel3D modelUrl={product.modelUrl} height="100%" />
+            <ProductModel3D 
+              modelUrl={validateModelUrl(product.modelUrl)} 
+              height="100%" 
+              onLoad={handleModelLoad}
+              onError={handleModelError}
+            />
+            {/* Show loading indicator while model is loading */}
+            {!modelLoaded && !modelError && (
+              <div style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                width: '100%', 
+                height: '100%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                backgroundColor: 'rgba(0, 0, 0, 0.1)'
+              }}>
+                <div className="model-loading-spinner"></div>
+              </div>
+            )}
           </div>
         ) : (
-          /* Regular image shown by default */
+          /* Regular image shown if no model or model error */
           <motion.img 
             variants={imageVariants}
             initial="initial"
@@ -121,6 +178,37 @@ const ProductCard = ({ product }) => {
         >
           <FiHeart size={16} />
         </button>
+        
+        {/* 3D Model indicator if available */}
+        {product.modelUrl && !modelError && (
+          <div 
+            style={{
+              position: 'absolute',
+              bottom: '1rem',
+              right: '1rem',
+              zIndex: 2,
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              color: 'white',
+              fontSize: '0.7rem',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backdropFilter: 'blur(4px)'
+            }}
+          >
+            <span style={{ 
+              display: 'inline-block', 
+              width: '6px', 
+              height: '6px', 
+              borderRadius: '50%', 
+              backgroundColor: '#4a90e2',
+              boxShadow: '0 0 6px #4a90e2' 
+            }}></span>
+            3D
+          </div>
+        )}
       </div>
 
       <div className="work-info">

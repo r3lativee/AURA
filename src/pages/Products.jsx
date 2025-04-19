@@ -32,6 +32,7 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
 import { productsAPI } from '../services/api';
+import ProductModel3D from '../components/ProductModel3D';
 import '../styles/pages/Products.css';
 import { toast } from 'react-hot-toast';
 
@@ -319,23 +320,42 @@ const Products = () => {
   return (
     <Box className="products-page" sx={{ bgcolor: '#121212', minHeight: '100vh', color: 'white' }}>
       <Container sx={{ py: 8, pt: '200px' }} maxWidth="lg">
-        <Typography 
-          ref={productsHeadingRef}
-          variant="h3" 
-          component="h1" 
-          align="center" 
-          sx={{ 
-            mb: 1, 
-            fontWeight: 'bold',
-            background: 'linear-gradient(45deg, #ffffff, #4a90e2)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            color: 'transparent'
-          }}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
-          Our Products
-        </Typography>
+          <Typography 
+            ref={productsHeadingRef}
+            variant="h2" 
+            component="h1" 
+            align="center" 
+            sx={{ 
+              mb: 4, 
+              fontWeight: 600,
+              background: 'linear-gradient(45deg, #ffffff, #4a90e2)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent',
+              letterSpacing: '-0.5px',
+              position: 'relative',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                bottom: '-15px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '80px',
+                height: '3px',
+                background: 'linear-gradient(90deg, transparent, #4a90e2, transparent)',
+                borderRadius: '3px'
+              }
+            }}
+          >
+            Our Products
+          </Typography>
+        </motion.div>
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -343,13 +363,21 @@ const Products = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="filters-section">
-            <Typography variant="body2" align="center" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-              Filters:
+            <Typography 
+              variant="h6" 
+              align="center" 
+              sx={{ 
+                color: 'rgba(255,255,255,0.9)',
+                fontWeight: 500,
+                mb: 2
+              }}
+            >
+              Filters
             </Typography>
             
             <div className="filters-container">
               <div>
-                <label className="filter-label">Price</label>
+                <label className="filter-label">Sort By</label>
                 <select 
                   className="filter-select"
                   value={sortBy}
@@ -363,7 +391,7 @@ const Products = () => {
               </div>
               
               <div>
-                <label className="filter-label">Product</label>
+                <label className="filter-label">Category</label>
                 <select 
                   className="filter-select"
                   value={category}
@@ -442,14 +470,56 @@ const Products = () => {
                         className="product-image"
                         onClick={() => navigate(`/product/${product._id}`)}
                       >
-                        <motion.img
-                          variants={imageVariants}
-                          src={`${import.meta.env.VITE_API_URL}${product.images[0]}`}
-                          alt={product.name}
-                          onError={(e) => {
-                            e.target.src = '/placeholder.jpg';
-                          }}
-                        />
+                        {/* Use 3D model if available, otherwise use image */}
+                        {product.modelUrl && typeof product.modelUrl === 'string' && product.modelUrl.endsWith('.glb') ? (
+                          <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+                            <ProductModel3D 
+                              modelUrl={product.modelUrl.startsWith('/') || product.modelUrl.startsWith('http') 
+                                ? product.modelUrl 
+                                : `/${product.modelUrl}`} 
+                              height="100%" 
+                              onError={() => {
+                                console.log(`Failed to load model for ${product.name}, using image instead`);
+                              }}
+                            />
+                            <div 
+                              style={{
+                                position: 'absolute',
+                                bottom: '10px',
+                                right: '10px',
+                                zIndex: 2,
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                color: 'white',
+                                fontSize: '0.7rem',
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backdropFilter: 'blur(4px)'
+                              }}
+                            >
+                              <span style={{ 
+                                display: 'inline-block', 
+                                width: '6px', 
+                                height: '6px', 
+                                borderRadius: '50%', 
+                                backgroundColor: '#4a90e2',
+                                boxShadow: '0 0 6px #4a90e2' 
+                              }}></span>
+                              3D
+                            </div>
+                          </div>
+                        ) : (
+                          <motion.img
+                            variants={imageVariants}
+                            src={`${import.meta.env.VITE_API_URL}${product.images[0]}`}
+                            alt={product.name}
+                            onError={(e) => {
+                              e.target.src = '/placeholder.jpg';
+                            }}
+                          />
+                        )}
                       </div>
                       
                       {/* Product info */}

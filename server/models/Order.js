@@ -1,95 +1,128 @@
 const mongoose = require('mongoose');
 
-const orderItemSchema = new mongoose.Schema({
-  product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
-    required: true
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  price: {
-    type: Number,
-    required: true
-  },
-  size: String,
-  color: String,
-  subtotal: Number
-});
-
 const orderSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  items: [orderItemSchema],
+  items: [
+    {
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
+        required: true
+      },
+      name: {
+        type: String,
+        required: true
+      },
+      price: {
+        type: Number,
+        required: true
+      },
+      quantity: {
+        type: Number,
+        required: true,
+        min: 1
+      },
+      size: {
+        type: String,
+        default: null
+      },
+      color: {
+        type: String,
+        default: null
+      }
+    }
+  ],
   shippingAddress: {
-    street: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    country: { type: String, required: true },
-    zipCode: { type: String, required: true }
+    street: {
+      type: String,
+      required: true
+    },
+    city: {
+      type: String,
+      required: true
+    },
+    state: {
+      type: String,
+      required: true
+    },
+    pincode: {
+      type: String,
+      required: true
+    },
+    country: {
+      type: String,
+      required: true
+    }
   },
-  paymentInfo: {
-    method: {
-      type: String,
-      required: true,
-      enum: ['CARD', 'UPI', 'COD']
-    },
-    status: {
-      type: String,
-      required: true,
-      enum: ['PENDING', 'PAID', 'FAILED'],
-      default: 'PENDING'
-    },
-    transactionId: String
+  totalAmount: {
+    type: Number,
+    required: true
   },
   status: {
     type: String,
-    required: true,
-    enum: ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'],
-    default: 'PENDING'
+    enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
+    default: 'pending'
   },
-  subtotal: {
-    type: Number,
+  paymentMethod: {
+    type: String,
+    enum: ['Credit Card', 'Debit Card', 'Razorpay', 'PayPal', 'Cash on Delivery'],
     required: true
   },
-  shippingCost: {
-    type: Number,
-    required: true,
-    default: 0
+  paymentDetails: {
+    cardName: {
+      type: String
+    },
+    cardNumber: {
+      type: String
+    },
+    expDate: {
+      type: String
+    },
+    method: {
+      type: String
+    },
+    razorpayPaymentId: {
+      type: String
+    },
+    razorpayOrderId: {
+      type: String
+    },
+    razorpaySignature: {
+      type: String
+    }
   },
-  tax: {
-    type: Number,
-    required: true,
-    default: 0
+  isPaid: {
+    type: Boolean,
+    default: false
   },
-  total: {
-    type: Number,
-    required: true
+  paidAt: {
+    type: Date
   },
-  trackingNumber: String,
-  estimatedDelivery: Date,
-  notes: String,
-  cancellationReason: String
+  isDelivered: {
+    type: Boolean,
+    default: false
+  },
+  deliveredAt: {
+    type: Date
+  },
+  trackingNumber: {
+    type: String
+  }
 }, {
   timestamps: true
 });
 
-// Add indexes for common queries
-orderSchema.index({ user: 1, createdAt: -1 });
-orderSchema.index({ status: 1 });
-orderSchema.index({ 'paymentInfo.status': 1 });
-
-// Calculate totals before saving
-orderSchema.pre('save', function(next) {
-  this.subtotal = this.items.reduce((sum, item) => sum + item.subtotal, 0);
-  this.total = this.subtotal + this.shippingCost + this.tax;
-  next();
+// Virtual for calculating order total
+orderSchema.virtual('orderTotal').get(function() {
+  return this.items.reduce((total, item) => {
+    return total + (item.price * item.quantity);
+  }, 0);
 });
 
-module.exports = mongoose.model('Order', orderSchema); 
+const Order = mongoose.model('Order', orderSchema);
+
+module.exports = Order; 

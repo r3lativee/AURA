@@ -526,21 +526,13 @@ const ProductDetail = () => {
               )}
 
             {/* Quantity and Add to Cart */}
-              <div className="product-controls" style={{ marginTop: '2rem' }}>
-                <div className="quantity-selector" style={{ 
-                  display: 'flex',
-                  alignItems: 'center', 
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '50px',
-                  overflow: 'hidden',
-                  width: 'fit-content',
-                  marginBottom: '1.5rem',
-                  background: 'rgba(255, 255, 255, 0.03)'
-                }}>
+              <div className="product-controls">
+                {/* Quantity Selector */}
+                <div className="quantity-selector">
                   <button 
                     className="quantity-btn"
                     onClick={() => handleQuantityChange(-1)}
-                  disabled={quantity <= 1}
+                    disabled={quantity <= 1}
                     style={{
                       width: '40px',
                       height: '40px',
@@ -582,58 +574,53 @@ const ProductDetail = () => {
                   </button>
                 </div>
                 
-                <button
-                  className="add-to-cart-btn lusion-button"
-                  onClick={handleAddToCart}
-                  disabled={adding || (product.sizes && product.sizes.length > 0 && !selectedSize)}
-                  style={{
-                    width: '100%',
-                    marginBottom: '1rem',
-                    padding: '12px 30px',
-                    opacity: adding || (product.sizes && product.sizes.length > 0 && !selectedSize) ? 0.6 : 1,
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {adding ? (
-                    <CircularProgress size={24} sx={{ color: '#000' }} />
-                  ) : (
-                    <>
-                      <FiShoppingCart style={{ marginRight: '10px' }} />
-                      Add to Cart - ${(product.price * quantity).toFixed(2)}
-                    </>
-                  )}
-                </button>
-                
-                <button 
-                  onClick={handleFavoriteToggle} 
-                  className="favorite-btn"
-              style={{ 
-                    width: '100%',
-                    padding: '12px 30px',
-                    backgroundColor: 'transparent',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '50px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: isFavorite(product._id) ? '#e74c3c' : 'white',
-                transition: 'all 0.3s ease'
-              }}
-                >
-                  {isFavorite(product._id) ? (
-                    <>
-                      <Favorite sx={{ mr: 1 }} />
-                      Remove from Favorites
-                    </>
-                  ) : (
-                    <>
-                      <FavoriteBorder sx={{ mr: 1 }} />
-                      Add to Favorites
-                    </>
-                  )}
-                </button>
+                <div className="product-actions">
+                  <button
+                    className="add-to-cart-btn lusion-button"
+                    onClick={handleAddToCart}
+                    disabled={adding || (product.sizes && product.sizes.length > 0 && !selectedSize)}
+                    style={{
+                      flex: '1',
+                      padding: '12px 30px',
+                      opacity: adding || (product.sizes && product.sizes.length > 0 && !selectedSize) ? 0.6 : 1,
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {adding ? (
+                      <CircularProgress size={24} sx={{ color: '#000' }} />
+                    ) : (
+                      <>
+                        <FiShoppingCart style={{ marginRight: '10px' }} />
+                        Add to Cart - ${(product.price * quantity).toFixed(2)}
+                      </>
+                    )}
+                  </button>
+                  
+                  <button 
+                    onClick={handleFavoriteToggle} 
+                    className="favorite-btn"
+                    style={{ 
+                      padding: '12px 30px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '50px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: isFavorite(product._id) ? '#e74c3c' : 'white',
+                      transition: 'all 0.3s ease',
+                      minWidth: '50px'
+                    }}
+                  >
+                    {isFavorite(product._id) ? (
+                      <Favorite />
+                    ) : (
+                      <FavoriteBorder />
+                    )}
+                  </button>
+                </div>
               </div>
 
             {!product.inStock && (

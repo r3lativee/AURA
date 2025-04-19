@@ -253,53 +253,63 @@
   margin-bottom: 4rem;
   width: 100%;
   padding: 0 1rem;
+  text-align: center;
 }
 
 .filters-container {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 2rem;
   margin-top: 1.5rem;
+  background-color: rgba(26, 26, 26, 0.6);
+  padding: 1.5rem 2rem;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
 .filter-label {
   display: block;
-  font-size: 0.75rem;
-  font-weight: 400;
-  margin-bottom: 0.5rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
   letter-spacing: 0.05rem;
   text-transform: uppercase;
 }
 
 .filter-select {
-  background-color: #222222;
+  background-color: rgba(34, 34, 34, 0.8);
   color: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 50px;
-  padding: 0.75rem 1.25rem;
+  padding: 0.875rem 1.5rem;
   padding-right: 2.5rem;
   font-size: 0.875rem;
   font-weight: 400;
   appearance: none;
   outline: none;
   cursor: pointer;
-  min-width: 180px;
-  transition: all 0.2s ease;
+  min-width: 200px;
+  transition: all 0.3s ease;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .filter-select:hover {
   border-color: rgba(255, 255, 255, 0.3);
-  background-color: #2a2a2a;
+  background-color: rgba(42, 42, 42, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .filter-select:focus {
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 0 1px rgba(74, 144, 226, 0.1);
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.25);
 }
 
 .filter-option {
@@ -321,7 +331,7 @@
 /* Responsive adjustments */
 @media (max-width: 991px) {
   .products-page {
-    padding-top: 100px;
+    padding-top: 20px;
   }
   
   .products-grid {
@@ -348,8 +358,9 @@
 
   .filters-container {
     flex-direction: column;
-  align-items: center;
-    gap: 1rem;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem;
   }
   
   .filter-select {
@@ -503,9 +514,18 @@
 
 .product-controls {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   margin-top: 2rem;
   gap: 1rem;
+  width: 100%;
+}
+
+.product-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 1rem;
 }
 
 .quantity-selector {
@@ -515,7 +535,7 @@
   border-radius: 50px;
   overflow: hidden;
   width: fit-content;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .quantity-button {
@@ -768,35 +788,55 @@
 
 @media (max-width: 576px) {
   .product-detail-container {
-    padding-top: 80px;
-    padding-bottom: 80px;
+    padding: 1rem;
+    margin-top: 150px;
   }
   
   .model-container {
-    height: 300px;
+    height: 250px;
   }
   
   .product-title {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
   }
   
   .product-controls {
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .product-actions {
+    flex-direction: row;
+    width: 100%;
   }
   
   .add-to-cart-btn {
-    width: 100%;
-    margin-top: 1rem;
-    order: 3;
+    font-size: 0.8rem;
+    padding: 0.75rem;
   }
   
   .quantity-selector {
-    order: 1;
+    margin-bottom: 0.5rem;
   }
   
   .favorite-btn {
-    order: 2;
-    margin-left: auto;
+    padding: 0;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Add a new media query for very small screens */
+@media (max-width: 400px) {
+  .product-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .favorite-btn {
+    width: 100%;
+    height: auto;
+    padding: 10px 0;
   }
 }
 

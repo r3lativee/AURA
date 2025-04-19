@@ -13,8 +13,8 @@ const CursorLineMaterial = shaderMaterial(
     speed: 0.8,
     fadeOpacity: 1.0,
     resolution: new THREE.Vector2(0, 0),
-    mousePos: new THREE.Vector2(0, 0),
-    prevMousePos: new THREE.Vector2(0, 0),
+    mousePos: new THREE.Vector2(0.5, 0.5), // default position at center
+    prevMousePos: new THREE.Vector2(0.5, 0.5), // default position at center
     movementSpeed: 0.0,
     glitchAmount: 0.0,
   },
@@ -130,12 +130,13 @@ extend({ CursorLineMaterial });
 function CursorLineEffect() {
   const materialRef = useRef();
   const { viewport, size } = useThree();
-  const mousePos = useRef(new THREE.Vector2(0, 0));
-  const prevMousePos = useRef(new THREE.Vector2(0, 0));
+  const mousePos = useRef(new THREE.Vector2(0.5, 0.5)); // Start in the center
+  const prevMousePos = useRef(new THREE.Vector2(0.5, 0.5)); // Start in the center
   const lastMoveTime = useRef(0);
   const movementSpeed = useRef(0);
   const glitchAmount = useRef(0);
   const lastPositions = useRef([]);
+  const isMouseOverCanvas = useRef(false);
   
   useEffect(() => {
     const updateMousePosition = (e) => {
@@ -174,16 +175,29 @@ function CursorLineEffect() {
       mousePos.current.y = y;
       
       lastMoveTime.current = now;
+      isMouseOverCanvas.current = true;
+    };
+    
+    const handleMouseOut = () => {
+      isMouseOverCanvas.current = false;
+    };
+    
+    const handleMouseOver = () => {
+      isMouseOverCanvas.current = true;
     };
 
     window.addEventListener('mousemove', updateMousePosition);
     window.addEventListener('touchmove', (e) => {
       updateMousePosition(e.touches[0]);
     });
+    document.addEventListener('mouseout', handleMouseOut);
+    document.addEventListener('mouseover', handleMouseOver);
 
     return () => {
       window.removeEventListener('mousemove', updateMousePosition);
       window.removeEventListener('touchmove', updateMousePosition);
+      document.removeEventListener('mouseout', handleMouseOut);
+      document.removeEventListener('mouseover', handleMouseOver);
     };
   }, [size]);
 
@@ -203,9 +217,9 @@ function CursorLineEffect() {
       movementSpeed.current *= 0.95;
       glitchAmount.current *= 0.9;
       
-      // Fade out when not moving for a while, but keep some minimal visibility
+      // Fade out when not moving for a while or mouse is not over canvas
       const timeSinceLastMove = performance.now() - lastMoveTime.current;
-      if (timeSinceLastMove > 1000) {
+      if (!isMouseOverCanvas.current || timeSinceLastMove > 1000) {
         materialRef.current.fadeOpacity = Math.max(0.1, 1 - (timeSinceLastMove - 1000) / 2000);
       } else {
         materialRef.current.fadeOpacity = 1.0;
@@ -222,6 +236,15 @@ function CursorLineEffect() {
 }
 
 export default function CursorRipple() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+  
+  if (!mounted) return null;
+  
   return (
     <div className="cursor-ripple-container">
       <Canvas style={{ position: 'fixed', top: 0, left: 0, zIndex: 100, pointerEvents: 'none' }}>

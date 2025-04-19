@@ -24,6 +24,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  alpha,
+  styled
 } from '@mui/material';
 import {
   ShoppingBag as ShoppingBagIcon,
@@ -45,40 +47,115 @@ import { ordersAPI, productsAPI, authAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const StatCard = ({ title, value, icon, color, trend, percentage, subtitle }) => {
+// Styled components
+const GlassCard = styled(Card)(({ theme }) => ({
+  background: alpha(theme.palette.background.paper, 0.8),
+  backdropFilter: 'blur(10px)',
+  borderRadius: 16,
+  boxShadow: '0 4px 20px 0 rgba(0, 0, 0, 0.05)',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  overflow: 'hidden',
+  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+  height: '100%',
+  '&:hover': {
+    transform: 'translateY(-5px)',
+    boxShadow: '0 8px 25px 0 rgba(0, 0, 0, 0.1)',
+  }
+}));
+
+const StatIcon = styled(Avatar)(({ theme, bgColor }) => ({
+  backgroundColor: alpha(theme.palette[bgColor].main, 0.15),
+  color: theme.palette[bgColor].main,
+  width: 64,
+  height: 64,
+  borderRadius: 16,
+  boxShadow: `0 4px 14px 0 ${alpha(theme.palette[bgColor].main, 0.2)}`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  '& .MuiSvgIcon-root': {
+    fontSize: 28,
+  }
+}));
+
+const GradientBackground = styled(Box)(({ theme, startColor, endColor }) => ({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '100%',
+  opacity: 0.05,
+  borderRadius: 16,
+  background: `linear-gradient(135deg, ${startColor} 0%, ${endColor} 100%)`,
+  zIndex: 0,
+}));
+
+const StatCard = ({ title, value, icon, color, percentage, subtitle, timeframeText }) => {
   const theme = useTheme();
   
+  // Determine trend direction based on percentage
+  const trendDirection = percentage >= 0 ? 'up' : 'down';
+  const displayPercentage = Math.abs(percentage || 0);
+
+  // Define gradient colors based on the status color
+  const gradientColors = {
+    primary: { start: '#2196f3', end: '#21CBF3' },
+    success: { start: '#66BB6A', end: '#43A047' },
+    info: { start: '#29B6F6', end: '#0288D1' },
+    warning: { start: '#FFA726', end: '#F57C00' },
+    error: { start: '#EF5350', end: '#C62828' },
+  };
+  
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Grid container spacing={2} alignItems="center">
+    <GlassCard>
+      <GradientBackground 
+        startColor={gradientColors[color]?.start || '#000'} 
+        endColor={gradientColors[color]?.end || '#000'} 
+      />
+      <CardContent sx={{ position: 'relative', zIndex: 1, p: 3 }}>
+        <Grid container spacing={3} alignItems="center">
           <Grid item>
-            <Avatar
-              sx={{
-                backgroundColor: `${color}.light`,
-                color: `${color}.main`,
-                height: 56,
-                width: 56,
-              }}
-            >
+            <StatIcon bgColor={color}>
               {icon}
-            </Avatar>
+            </StatIcon>
           </Grid>
           <Grid item sx={{ flexGrow: 1 }}>
-            <Typography color="textSecondary" variant="subtitle2" gutterBottom>
+            <Typography 
+              color="textSecondary" 
+              variant="subtitle2" 
+              sx={{ 
+                fontSize: '0.875rem', 
+                fontWeight: 500, 
+                opacity: 0.7, 
+                mb: 0.5,
+                letterSpacing: 0.5 
+              }}
+            >
               {title}
             </Typography>
-            <Typography variant="h4" fontWeight="bold">{value}</Typography>
+            <Typography variant="h4" fontWeight="700" letterSpacing={0.2}>{value}</Typography>
             {subtitle && (
-              <Typography variant="caption" color="textSecondary">
+              <Typography variant="caption" color="textSecondary" sx={{ opacity: 0.7, fontWeight: 500 }}>
                 {subtitle}
               </Typography>
             )}
           </Grid>
         </Grid>
+        
         {percentage !== undefined && (
-          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
-            {trend === 'up' ? (
+          <Box sx={{ 
+            mt: 2.5, 
+            display: 'flex', 
+            alignItems: 'center', 
+            p: 1, 
+            borderRadius: 1.5,
+            backgroundColor: alpha(
+              theme.palette[trendDirection === 'up' ? 'success' : 'error'].main, 
+              0.1
+            ),
+            width: 'fit-content'
+          }}>
+            {trendDirection === 'up' ? (
               <TrendingUpIcon color="success" fontSize="small" />
             ) : (
               <TrendingDownIcon color="error" fontSize="small" />
@@ -86,20 +163,21 @@ const StatCard = ({ title, value, icon, color, trend, percentage, subtitle }) =>
             <Typography
               variant="body2"
               sx={{
-                color: trend === 'up' ? 'success.main' : 'error.main',
-                ml: 1,
+                color: theme.palette[trendDirection === 'up' ? 'success' : 'error'].main,
+                ml: 0.75,
                 fontWeight: 'medium',
+                fontSize: '0.8rem'
               }}
             >
-              {percentage}%
+              {displayPercentage.toFixed(1)}%
             </Typography>
-            <Typography variant="caption" sx={{ ml: 1 }}>
-              Since last month
+            <Typography variant="caption" sx={{ ml: 1, opacity: 0.7, fontSize: '0.7rem' }}>
+              Since last {timeframeText}
             </Typography>
           </Box>
         )}
       </CardContent>
-    </Card>
+    </GlassCard>
   );
 };
 
@@ -147,7 +225,12 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [ordersStats, usersData, productsStats, revenueSales, topProducts, lowStockItems] = await Promise.all([
+      
+      // Track previous stats for change percentage calculation
+      const prevStats = { ...stats };
+      
+      // Fetch all required data using Promise.all for parallel requests
+      const [ordersResponse, usersResponse, productsResponse, revenueResponse, topProductsResponse, lowStockResponse] = await Promise.all([
         ordersAPI.getStats(),
         authAPI.getStats(),
         productsAPI.getStats(),
@@ -155,36 +238,84 @@ const Dashboard = () => {
         productsAPI.getTopSelling(),
         productsAPI.getLowStock(),
       ]);
-
-      // Calculate profit (estimated as 30% of revenue)
-      const profit = ordersStats.totalRevenue * 0.3;
-
+      
+      // Extract data from responses
+      const ordersData = ordersResponse.data || {};
+      const usersData = usersResponse.data || {};
+      const productsData = productsResponse.data || {};
+      const revenueData = revenueResponse.data || {};
+      
+      // Calculate profit - In real world, this would come from the API
+      // For now using a 30% profit margin estimate
+      const totalRevenue = ordersData.totalRevenue || 0;
+      const profit = totalRevenue * 0.3;
+      
+      // Calculate growth percentages (compared to previous period)
+      const orderGrowth = calculateGrowthPercentage(
+        prevStats.totalOrders, 
+        ordersData.totalOrders || 0
+      );
+      
+      const revenueGrowth = calculateGrowthPercentage(
+        prevStats.totalRevenue, 
+        totalRevenue
+      );
+      
+      const profitGrowth = calculateGrowthPercentage(
+        prevStats.profit, 
+        profit
+      );
+      
+      const userGrowth = calculateGrowthPercentage(
+        prevStats.totalUsers, 
+        usersData.totalUsers || 0
+      );
+      
+      // Update stats state
       setStats({
-        totalOrders: ordersStats.totalOrders || 0,
+        totalOrders: ordersData.totalOrders || 0,
         totalUsers: usersData.totalUsers || 0,
-        totalRevenue: ordersStats.totalRevenue || 0,
-        profit: profit || 0,
-        totalProducts: productsStats.totalProducts || 0,
+        totalRevenue: totalRevenue,
+        profit: profit,
+        totalProducts: productsData.totalProducts || 0,
+        orderGrowth,
+        revenueGrowth,
+        profitGrowth,
+        userGrowth
       });
-
-      // Process recent orders
-      setRecentOrders(ordersStats.recentOrders || []);
       
-      // Process sales and revenue data for charts
-      setSalesData(revenueSales.salesData || []);
-      setRevenueData(revenueSales.revenueData || []);
+      // Update other states
+      setRecentOrders(ordersData.recentOrders || []);
+      setSalesData(revenueData.salesData || getDefaultChartData());
+      setRevenueData(revenueData.revenueData || getDefaultChartData());
+      setTopSellingProducts(topProductsResponse.data?.products || []);
+      setLowStockProducts(lowStockResponse.data?.products || []);
       
-      // Set top selling products
-      setTopSellingProducts(topProducts.products || []);
-      
-      // Set low stock products
-      setLowStockProducts(lowStockItems.products || []);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error('Failed to load dashboard data. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Helper function to calculate growth percentage
+  const calculateGrowthPercentage = (oldValue, newValue) => {
+    if (oldValue === 0) return newValue > 0 ? 100 : 0;
+    const growth = ((newValue - oldValue) / oldValue) * 100;
+    return parseFloat(growth.toFixed(1));
+  };
+  
+  // Helper function to generate default chart data if API returns empty
+  const getDefaultChartData = () => {
+    return [
+      { name: 'Jan', revenue: 0, sales: 0, profit: 0 },
+      { name: 'Feb', revenue: 0, sales: 0, profit: 0 },
+      { name: 'Mar', revenue: 0, sales: 0, profit: 0 },
+      { name: 'Apr', revenue: 0, sales: 0, profit: 0 },
+      { name: 'May', revenue: 0, sales: 0, profit: 0 },
+      { name: 'Jun', revenue: 0, sales: 0, profit: 0 },
+    ];
   };
 
   const formatCurrency = (amount) => {
@@ -206,23 +337,59 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <LinearProgress />;
+    return <LinearProgress sx={{ 
+      height: 4, 
+      borderRadius: 2,
+      background: alpha(theme.palette.primary.main, 0.1)
+    }} />;
   }
 
   return (
     <Box sx={{ width: '100%' }}>
       {/* Header Section */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box 
+        sx={{ 
+          mb: 4, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2
+        }}
+      >
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography 
+            variant="h4" 
+            gutterBottom 
+            sx={{ 
+              fontWeight: 700, 
+              background: 'linear-gradient(90deg, #fff 30%, rgba(255,255,255,0.7) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: 0.5
+            }}
+          >
             Admin Dashboard
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: 'text.secondary', opacity: 0.8 }}>
             Here's a summary of your store performance and recent activity.
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: { xs: 2, md: 0 } }}>
+          <FormControl 
+            variant="outlined" 
+            size="small" 
+            sx={{ 
+              minWidth: 120,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                backgroundColor: alpha(theme.palette.background.paper, 0.1),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.background.paper, 0.15),
+                }
+              } 
+            }}
+          >
             <InputLabel id="timeframe-select-label">Timeframe</InputLabel>
             <Select
               labelId="timeframe-select-label"
@@ -242,6 +409,12 @@ const Dashboard = () => {
             color="primary"
             startIcon={<RefreshIcon />}
             onClick={handleRefresh}
+            sx={{ 
+              borderRadius: 2,
+              px: 2.5,
+              py: 1,
+              boxShadow: `0 4px 14px 0 ${alpha(theme.palette.primary.main, 0.3)}`
+            }}
           >
             Refresh
           </Button>
@@ -249,15 +422,17 @@ const Dashboard = () => {
       </Box>
 
       {/* Stats Grid */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Orders"
             value={stats.totalOrders}
             icon={<ShoppingBagIcon />}
             color="primary"
-            trend="up"
-            percentage={12}
+            percentage={stats.orderGrowth}
+            timeframeText={timeframe === 'daily' ? 'day' : 
+                           timeframe === 'weekly' ? 'week' : 
+                           timeframe === 'yearly' ? 'year' : 'month'}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -266,9 +441,11 @@ const Dashboard = () => {
             value={formatCurrency(stats.totalRevenue)}
             icon={<AttachMoneyIcon />}
             color="success"
-            trend="up"
-            percentage={15}
+            percentage={stats.revenueGrowth}
             subtitle="Gross revenue from all sales"
+            timeframeText={timeframe === 'daily' ? 'day' : 
+                           timeframe === 'weekly' ? 'week' : 
+                           timeframe === 'yearly' ? 'year' : 'month'}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -277,9 +454,11 @@ const Dashboard = () => {
             value={formatCurrency(stats.profit)}
             icon={<ProfitIcon />}
             color="info"
-            trend="up"
-            percentage={18}
+            percentage={stats.profitGrowth}
             subtitle="Estimated net profit"
+            timeframeText={timeframe === 'daily' ? 'day' : 
+                           timeframe === 'weekly' ? 'week' : 
+                           timeframe === 'yearly' ? 'year' : 'month'}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -288,36 +467,66 @@ const Dashboard = () => {
             value={stats.totalUsers}
             icon={<PersonIcon />}
             color="warning"
-            trend="up"
-            percentage={8}
+            percentage={stats.userGrowth}
+            timeframeText={timeframe === 'daily' ? 'day' : 
+                           timeframe === 'weekly' ? 'week' : 
+                           timeframe === 'yearly' ? 'year' : 'month'}
           />
         </Grid>
       </Grid>
 
       {/* Charts Section */}
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
         <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Revenue & Sales Overview
-                </Typography>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Monthly performance
-                </Typography>
+          <GlassCard>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                    Revenue & Sales Overview
+                  </Typography>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ opacity: 0.7 }}>
+                    Monthly performance
+                  </Typography>
+                </Box>
+                <IconButton size="small" sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.1) }}>
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
               </Box>
-              <Box sx={{ height: 400 }}>
+              <Box sx={{ height: 400, mt: 2 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={revenueData}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis yAxisId="left" orientation="left" stroke={theme.palette.primary.main} />
-                    <YAxis yAxisId="right" orientation="right" stroke={theme.palette.success.main} />
-                    <ChartTooltip />
+                    <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.1)} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fill: theme.palette.text.secondary }} 
+                      axisLine={{ stroke: theme.palette.divider }} 
+                    />
+                    <YAxis 
+                      yAxisId="left" 
+                      orientation="left" 
+                      stroke={theme.palette.primary.main}
+                      tick={{ fill: theme.palette.text.secondary }}
+                      axisLine={{ stroke: theme.palette.divider }} 
+                    />
+                    <YAxis 
+                      yAxisId="right" 
+                      orientation="right" 
+                      stroke={theme.palette.success.main}
+                      tick={{ fill: theme.palette.text.secondary }}
+                      axisLine={{ stroke: theme.palette.divider }} 
+                    />
+                    <ChartTooltip 
+                      contentStyle={{ 
+                        backgroundColor: alpha(theme.palette.background.paper, 0.9),
+                        borderRadius: 8,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                        border: 'none'
+                      }} 
+                    />
                     <Legend />
                     <Line
                       yAxisId="left"
@@ -325,7 +534,9 @@ const Dashboard = () => {
                       dataKey="revenue"
                       name="Revenue"
                       stroke={theme.palette.primary.main}
-                      activeDot={{ r: 8 }}
+                      strokeWidth={3}
+                      activeDot={{ r: 8, strokeWidth: 0, fill: theme.palette.primary.main }}
+                      dot={{ r: 0 }}
                     />
                     <Line
                       yAxisId="right"
@@ -333,52 +544,90 @@ const Dashboard = () => {
                       dataKey="profit"
                       name="Profit"
                       stroke={theme.palette.success.main}
+                      strokeWidth={3}
+                      activeDot={{ r: 8, strokeWidth: 0, fill: theme.palette.success.main }}
+                      dot={{ r: 0 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
             </CardContent>
-          </Card>
+          </GlassCard>
         </Grid>
         <Grid item xs={12} lg={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Top Selling Products
-              </Typography>
+          <GlassCard sx={{ height: '100%' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Top Selling Products
+                </Typography>
+                <IconButton size="small" sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.1) }}>
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Box>
               {topSellingProducts.length === 0 ? (
                 <Box sx={{ 
                   display: 'flex', 
                   justifyContent: 'center', 
                   alignItems: 'center',
-                  height: 200 
+                  height: 200,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.3),
+                  borderRadius: 2,
+                  mt: 2
                 }}>
-                  <Typography color="text.secondary">
+                  <Typography color="text.secondary" sx={{ opacity: 0.7 }}>
                     No product sales data available
                   </Typography>
                 </Box>
               ) : (
-                <List sx={{ p: 0 }}>
-                  {topSellingProducts.map((product) => (
-                    <ListItem key={product._id} sx={{ px: 0 }}>
-                      <ListItemAvatar>
-                        <Avatar
-                          src={product.thumbnailUrl}
-                          variant="rounded"
-                          alt={product.name}
+                <List sx={{ p: 0, mt: 1 }}>
+                  {topSellingProducts.map((product, index) => (
+                    <React.Fragment key={product._id}>
+                      <ListItem sx={{ 
+                        px: 1, 
+                        py: 1.5,
+                        borderRadius: 2,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                        }
+                      }}>
+                        <ListItemAvatar>
+                          <Avatar
+                            src={product.thumbnailUrl}
+                            variant="rounded"
+                            alt={product.name}
+                            sx={{ 
+                              width: 50, 
+                              height: 50, 
+                              borderRadius: 2,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={product.name}
+                          secondary={`${product.salesCount} units · ${formatCurrency(product.price * product.salesCount / 100)}`}
+                          primaryTypographyProps={{ 
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            mb: 0.5
+                          }}
+                          secondaryTypographyProps={{
+                            fontSize: '0.8rem',
+                            color: alpha(theme.palette.text.secondary, 0.8)
+                          }}
                         />
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={product.name}
-                        secondary={`${product.salesCount} units · ${formatCurrency(product.price * product.salesCount / 100)}`}
-                        primaryTypographyProps={{ fontWeight: 'medium' }}
-                      />
-                    </ListItem>
+                      </ListItem>
+                      {index < topSellingProducts.length - 1 && (
+                        <Divider sx={{ opacity: 0.1, my: 0.5 }} />
+                      )}
+                    </React.Fragment>
                   ))}
                 </List>
               )}
             </CardContent>
-          </Card>
+          </GlassCard>
         </Grid>
       </Grid>
     </Box>

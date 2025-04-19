@@ -4,7 +4,6 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
 import { motion } from 'framer-motion';
 import JustGirlScene from '../components/justagirl';
-import CursorRipple from '../components/CursorRipple';
 import AnimatedButton from '../components/AnimatedButton';
 import ProductCard from '../components/ProductCard';
 import { productsAPI } from '../services/api';
@@ -109,8 +108,6 @@ const Home = () => {
 
   return (
     <div className="lusion-wrapper" ref={containerRef}>
-      <CursorRipple />
-      
       <main style={{ paddingTop: 0 }}>
         <section className="hero-section">
           <JustGirlScene />

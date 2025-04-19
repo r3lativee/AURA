@@ -1,8 +1,15 @@
 const express = require('express');
 const Order = require('../models/Order');
 const { auth, adminAuth } = require('../middleware/auth');
+const Razorpay = require('razorpay');
 
 const router = express.Router();
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_M1QTLqpvgMzQNE',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'your_test_secret',
+});
 
 // Get all orders (admin only)
 router.get('/all', adminAuth, async (req, res, next) => {
@@ -51,33 +58,44 @@ router.get('/:id', auth, async (req, res, next) => {
   }
 });
 
-// Create new order
-router.post('/', auth, async (req, res, next) => {
+// Create a new order
+router.post('/', auth, async (req, res) => {
   try {
-    const {
-      items,
-      shippingAddress,
-      paymentInfo,
-      shippingCost,
-      tax
-    } = req.body;
-
+    const { items, shippingAddress, totalAmount, paymentMethod, paymentDetails } = req.body;
+    
+    if (!items || !items.length || !shippingAddress || !totalAmount || !paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required order information'
+      });
+    }
+    
+    // Create a new order
     const order = new Order({
-      user: req.user._id,
+      user: req.user.userId,
       items,
       shippingAddress,
-      paymentInfo,
-      shippingCost,
-      tax,
-      subtotal: items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      totalAmount,
+      paymentMethod,
+      paymentDetails,
+      // Set payment status based on payment method
+      isPaid: paymentMethod === 'Razorpay' && paymentDetails?.razorpayPaymentId ? true : false,
+      paidAt: paymentMethod === 'Razorpay' && paymentDetails?.razorpayPaymentId ? new Date() : null
     });
-
-    const savedOrder = await order.save();
-    await savedOrder.populate('items.product', 'name price images');
-
-    res.status(201).json(savedOrder);
+    
+    await order.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Order created successfully',
+      orderId: order._id
+    });
   } catch (error) {
-    next(error);
+    console.error('Order creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while creating order'
+    });
   }
 });
 
@@ -132,6 +150,103 @@ router.patch('/:id/cancel', auth, async (req, res, next) => {
     res.json(updatedOrder);
   } catch (error) {
     next(error);
+  }
+});
+
+// Create Razorpay order
+router.post('/razorpay', auth, async (req, res) => {
+  try {
+    const { amount, currency, receipt, notes } = req.body;
+    
+    // Validate amount
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order amount'
+      });
+    }
+    
+    // Create Razorpay order
+    const options = {
+      amount: Math.round(amount), // amount in smallest currency unit (paise for INR)
+      currency: currency || 'INR',
+      receipt: receipt,
+      notes: notes,
+      payment_capture: 1 // Auto-capture payment
+    };
+    
+    razorpay.orders.create(options, function(err, order) {
+      if (err) {
+        console.error('Razorpay order creation error:', err);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create payment order',
+          error: err.message
+        });
+      }
+      
+      res.json({
+        success: true,
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency
+      });
+    });
+  } catch (error) {
+    console.error('Razorpay route error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while creating payment order'
+    });
+  }
+});
+
+// Verify Razorpay payment
+router.post('/razorpay/verify', auth, async (req, res) => {
+  try {
+    const { 
+      razorpay_order_id, 
+      razorpay_payment_id, 
+      razorpay_signature 
+    } = req.body;
+    
+    // Validate required fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing payment verification details'
+      });
+    }
+    
+    // Get the secret key
+    const secret = process.env.RAZORPAY_KEY_SECRET || 'your_test_secret';
+    
+    // Verify signature
+    const crypto = require('crypto');
+    const generatedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest('hex');
+    
+    if (generatedSignature === razorpay_signature) {
+      // Payment is valid
+      res.json({
+        success: true,
+        message: 'Payment verified successfully'
+      });
+    } else {
+      // Payment verification failed
+      res.status(400).json({
+        success: false,
+        message: 'Payment verification failed'
+      });
+    }
+  } catch (error) {
+    console.error('Razorpay verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while verifying payment'
+    });
   }
 });
 

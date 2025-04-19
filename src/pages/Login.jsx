@@ -247,31 +247,31 @@ const Login = () => {
                 exit="exit"
               >
                 <motion.div className="form-group" variants={itemVariants}>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    className="form-input"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder=" "
-                    required
-                  />
-                  <label htmlFor="email" className="form-label">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder=" "
+                required
+              />
+              <label htmlFor="email" className="form-label">Email</label>
                 </motion.div>
-                
+            
                 <motion.div className="form-group" variants={itemVariants}>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    className="form-input"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder=" "
-                    required
-                  />
-                  <label htmlFor="password" className="form-label">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                className="form-input"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder=" "
+                required
+              />
+              <label htmlFor="password" className="form-label">Password</label>
                 </motion.div>
 
                 <motion.div 
@@ -282,21 +282,21 @@ const Login = () => {
                 </motion.div>
 
                 <motion.button
-                  type="submit"
-                  className="login-button"
-                  disabled={loading}
+              type="submit"
+              className="login-button"
+              disabled={loading}
                   variants={buttonVariants}
                   whileHover="hover"
                   whileTap="tap"
-                >
+            >
                   {loading ? 'Sending Code...' : 'Sign In'}
                 </motion.button>
-                
+
                 <motion.div 
                   className="register-link"
                   variants={itemVariants}
                 >
-                  Don't have an account?
+            Don't have an account?
                   <Link to="/register">Sign up</Link>
                 </motion.div>
               </motion.form>

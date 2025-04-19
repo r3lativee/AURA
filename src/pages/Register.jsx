@@ -351,46 +351,46 @@ const Register = () => {
                   variants={itemVariants}
                 >
                   <motion.div className="form-group" variants={itemVariants}>
-                    <input
-                      type="text"
-                      id="firstName"
-                      name="firstName"
-                      className="form-input"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      placeholder=" "
-                      required
-                    />
-                    <label htmlFor="firstName" className="form-label">First Name</label>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  className="form-input"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  placeholder=" "
+                  required
+                />
+                <label htmlFor="firstName" className="form-label">First Name</label>
                   </motion.div>
-                  
+
                   <motion.div className="form-group" variants={itemVariants}>
-                    <input
-                      type="text"
-                      id="lastName"
-                      name="lastName"
-                      className="form-input"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      placeholder=" "
-                      required
-                    />
-                    <label htmlFor="lastName" className="form-label">Last Name</label>
+                <input
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  className="form-input"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  placeholder=" "
+                  required
+                />
+                <label htmlFor="lastName" className="form-label">Last Name</label>
                   </motion.div>
                 </motion.div>
-                
+
                 <motion.div className="form-group" variants={itemVariants}>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    className="form-input"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder=" "
-                    required
-                  />
-                  <label htmlFor="email" className="form-label">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="form-input"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder=" "
+                required
+              />
+              <label htmlFor="email" className="form-label">Email</label>
                 </motion.div>
 
                 <motion.div className="form-group" variants={itemVariants}>
@@ -409,38 +409,38 @@ const Register = () => {
                 </motion.div>
                 
                 <motion.div className="form-group" variants={itemVariants}>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    className="form-input"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder=" "
-                    required
-                  />
-                  <label htmlFor="password" className="form-label">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                className="form-input"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder=" "
+                required
+              />
+              <label htmlFor="password" className="form-label">Password</label>
                 </motion.div>
-                
+
                 <motion.div className="form-group" variants={itemVariants}>
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    className="form-input"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder=" "
-                    required
-                  />
-                  <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                className="form-input"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder=" "
+                required
+              />
+              <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
                 </motion.div>
 
                 <motion.div 
                   className="password-requirements"
                   variants={itemVariants}
                 >
-                  {passwordRequirements.map((req, index) => (
+              {passwordRequirements.map((req, index) => (
                     <motion.div 
                       key={index} 
                       className={`requirement ${req.met ? 'met' : ''}`}
@@ -448,31 +448,31 @@ const Register = () => {
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3 + index * 0.1 }}
                     >
-                      <span className="requirement-icon">
-                        {req.met ? '✓' : '○'}
-                      </span>
-                      {req.text}
+                  <span className="requirement-icon">
+                    {req.met ? '✓' : '○'}
+                  </span>
+                  {req.text}
                     </motion.div>
-                  ))}
+              ))}
                 </motion.div>
 
                 <motion.button
-                  type="submit"
-                  className="register-button"
-                  disabled={loading}
+              type="submit"
+              className="register-button"
+              disabled={loading}
                   variants={buttonVariants}
                   whileHover="hover"
                   whileTap="tap"
-                >
+            >
                   {loading ? 'Processing...' : 'Create Account'}
                 </motion.button>
-                
+
                 <motion.div 
                   className="login-link"
                   variants={itemVariants}
                 >
-                  Already have an account?
-                  <Link to="/login">Sign In</Link>
+            Already have an account?
+            <Link to="/login">Sign In</Link>
                 </motion.div>
               </motion.form>
             ) : (
