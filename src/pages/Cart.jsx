@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import noDataAnimation from '/public/lottie/no data.json';
+import loadingAnimation from '/public/lottie/loading.json';
 import {
   Container,
   Box,
@@ -26,6 +27,24 @@ const Cart = () => {
   const navigate = useNavigate();
   const { cart, loading, updateCartItem, removeFromCart, clearCart } = useCart();
   const { isAuthenticated } = useAuth();
+
+  // Format thumbnail URL to handle relative paths
+  const formatThumbnailUrl = (url) => {
+    if (!url) return 'https://via.placeholder.com/120';
+    
+    // If it's already an absolute URL, return as is
+    if (url.startsWith('http')) return url;
+    
+    // Add API URL prefix for relative paths
+    if (url.startsWith('/') && import.meta.env.VITE_API_URL) {
+      const baseUrl = import.meta.env.VITE_API_URL.endsWith('/') 
+        ? import.meta.env.VITE_API_URL.slice(0, -1) 
+        : import.meta.env.VITE_API_URL;
+      return `${baseUrl}${url}`;
+    }
+    
+    return url;
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -112,7 +131,11 @@ const Cart = () => {
           pt: '160px'
         }}
       >
-        <CircularProgress sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+        <Lottie 
+          animationData={loadingAnimation} 
+          loop={true}
+          style={{ width: '150px', height: '150px' }}
+        />
       </Box>
     );
   }
@@ -168,7 +191,7 @@ const Cart = () => {
                         <CardMedia
                           component="img"
                           sx={{ width: 120, height: 120, objectFit: 'cover' }}
-                          image={item.product?.image || 'https://via.placeholder.com/120'}
+                          image={formatThumbnailUrl(item.product?.thumbnailUrl)}
                           alt={item.product?.name || 'Product image'}
                         />
                         <CardContent sx={{ flex: '1 0 auto', display: 'flex', flexDirection: 'column', p: 2 }}>

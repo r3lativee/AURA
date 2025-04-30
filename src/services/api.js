@@ -181,36 +181,22 @@ export const authAPI = {
     const formData = new FormData();
     formData.append('profileImage', file);
     
+    // Special headers for file upload
+    const headers = {
+      'Content-Type': 'multipart/form-data',
+      Authorization: `Bearer ${localStorage.getItem('token')}`
+    };
+    
     console.log('API Service: Uploading profile image');
     
-    // When using FormData, don't set Content-Type as it will be set automatically with the boundary
-    return api.post('/users/profile/image', formData, {
-      headers: {
-        // Let browser set the Content-Type with boundary for FormData
-        'Content-Type': undefined
-      }
-    });
+    // Upload the image
+    return api.post('/users/profile/image', formData, { headers });
   },
   deleteProfileImage: () => {
     console.log('API Service: Deleting profile image');
     return api.delete('/users/profile/image');
   },
-  getStats: async () => {
-    try {
-      const response = await api.get('/admin/users/stats');
-      return response;
-    } catch (error) {
-      console.error('Failed to fetch user stats:', error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: {
-          totalUsers: 0,
-          newUsers: 0,
-          activeUsers: 0
-        }
-      };
-    }
-  },
+  getStats: () => api.get('/admin/users/stats'),
   // Admin user management
   getAllUsers: () => api.get('/admin/users'),
   updateUser: (userId, data) => api.put(`/admin/users/${userId}`, data),
@@ -263,50 +249,9 @@ export const productsAPI = {
   create: (data) => api.post('/admin/products', data),
   update: (id, data) => api.put(`/admin/products/${id}`, data),
   delete: (id) => api.delete(`/admin/products/${id}`),
-  getStats: async () => {
-    try {
-      const response = await api.get('/admin/products/stats');
-      return response;
-    } catch (error) {
-      console.error('Failed to fetch product stats:', error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: {
-          totalProducts: 0,
-          outOfStock: 0,
-          lowStock: 0
-        }
-      };
-    }
-  },
-  getTopSelling: async () => {
-    try {
-      const response = await api.get('/admin/products/top-selling');
-      return response;
-    } catch (error) {
-      console.error('Failed to fetch top selling products:', error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: {
-          products: []
-        }
-      };
-    }
-  },
-  getLowStock: async () => {
-    try {
-      const response = await api.get('/admin/products/low-stock');
-      return response;
-    } catch (error) {
-      console.error('Failed to fetch low stock products:', error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: {
-          products: []
-        }
-      };
-    }
-  },
+  getStats: () => api.get('/admin/products/stats'),
+  getTopSelling: () => api.get('/admin/products/top-selling'),
+  getLowStock: () => api.get('/admin/products/low-stock'),
 };
 
 // Cart API
@@ -403,55 +348,89 @@ export const ordersAPI = {
   create: (orderData) => api.post('/orders', orderData),
   getAll: () => api.get('/orders'),
   getOne: (id) => api.get(`/orders/${id}`),
-  getStats: async () => {
-    try {
-      const response = await api.get('/admin/orders/stats');
-      return response;
-    } catch (error) {
-      console.error('Failed to fetch order stats:', error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: {
-          totalOrders: 0,
-          totalRevenue: 0,
-          recentOrders: []
-        }
-      };
-    }
-  },
+  getStats: () => api.get('/admin/orders/stats'),
   // Admin orders management
-  getAllOrders: async (params) => {
-    try {
-      const response = await api.get('/admin/orders', { params });
-      return response;
-    } catch (error) {
-      console.error('Failed to fetch all orders:', error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: []
-      };
-    }
-  },
-  updateOrderStatus: (orderId, data) => api.patch(`/admin/orders/${orderId}/status`, data),
-  updateStatus: (orderId, data) => api.patch(`/admin/orders/${orderId}`, data), // Backward compatibility
-  getRevenueReport: async (period = 'monthly') => {
-    try {
-      const response = await api.get(`/admin/reports/revenue?period=${period}`);
-      return response;
-    } catch (error) {
-      console.error(`Failed to fetch ${period} revenue report:`, error);
-      // Return a default structure to prevent UI errors
-      return {
-        data: {
-          revenueData: [],
-          salesData: []
-        }
-      };
-    }
-  },
+  getAllOrders: (params) => api.get('/admin/orders', { params }),
+  updateOrderStatus: (orderId, status) => api.patch(`/admin/orders/${orderId}/status`, { status }),
+  getRevenueReport: (period = 'monthly') => api.get(`/admin/reports/revenue?period=${period}`),
   getSalesReport: (period = 'monthly') => api.get(`/admin/reports/sales?period=${period}`),
-  createRazorpayOrder: (orderData) => api.post('/orders/razorpay', orderData),
-  verifyRazorpayPayment: (paymentData) => api.post('/orders/razorpay/verify', paymentData),
+};
+
+// Add this function to the existing exports
+export const uploadAPI = {
+  // Upload product files (model and thumbnail)
+  uploadProductFiles: async (modelFile, thumbnailFile) => {
+    try {
+      const formData = new FormData();
+      
+      if (modelFile) {
+        formData.append('model', modelFile);
+        console.log('Adding model file to upload:', modelFile.name);
+      }
+      
+      if (thumbnailFile) {
+        formData.append('thumbnail', thumbnailFile);
+        console.log('Adding thumbnail file to upload:', thumbnailFile.name);
+      }
+      
+      if (!modelFile && !thumbnailFile) {
+        throw new Error('No files to upload');
+      }
+      
+      // Special headers for file upload
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      };
+      
+      console.log('Uploading product files to server...');
+      
+      const response = await api.post('/upload/product-files', formData, { 
+        headers,
+        // These settings are crucial for file uploads
+        'Content-Type': 'multipart/form-data',
+        transformRequest: [function (data, headers) {
+          // Remove Content-Type header so boundary is set correctly for FormData
+          delete headers['Content-Type'];
+          return data;
+        }]
+      });
+      
+      // Format the response data for easier consumption
+      const responseData = response.data;
+      
+      // Log the server response and the complete URLs
+      console.log('Files uploaded successfully, server returned:', responseData);
+      if (responseData.modelFullUrl) {
+        console.log('Complete model URL:', responseData.modelFullUrl);
+      }
+      if (responseData.thumbnailFullUrl) {
+        console.log('Complete thumbnail URL:', responseData.thumbnailFullUrl);
+      }
+      
+      // For backward compatibility, format the response to include valid URLs
+      // if we got full URLs but no relative ones (or vice versa)
+      if (responseData.modelFullUrl && !responseData.modelUrl) {
+        responseData.modelUrl = responseData.modelFullUrl;
+      } else if (responseData.modelUrl && !responseData.modelFullUrl) {
+        responseData.modelFullUrl = responseData.modelUrl;
+      }
+      
+      if (responseData.thumbnailFullUrl && !responseData.thumbnailUrl) {
+        responseData.thumbnailUrl = responseData.thumbnailFullUrl;
+      } else if (responseData.thumbnailUrl && !responseData.thumbnailFullUrl) {
+        responseData.thumbnailFullUrl = responseData.thumbnailUrl;
+      }
+      
+      // Modify the response to include the data with properly formatted URLs
+      return {
+        ...response,
+        data: responseData
+      };
+    } catch (error) {
+      console.error('Error uploading product files:', error);
+      throw error;
+    }
+  },
 };
 
 export default api; 

@@ -82,7 +82,7 @@ const About = () => {
     {
       name: "Shashanka Gogoi",
       role: "Development Team",
-      image: "https://www.instagram.com/p/CvFhI3UpUKL/?utm_source=ig_web_button_share_sheet",
+      image: "",
       description: "Full Stack Developer, Designer and 3D Artist"
     },
     {

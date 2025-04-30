@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import {
   Box,
   Container,
@@ -42,7 +42,9 @@ import {
   Divider,
   Badge,
   Tooltip,
-  tooltipClasses
+  tooltipClasses,
+  FormHelperText,
+  CircularProgress
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -54,10 +56,18 @@ import {
   Image as ImageIcon,
   GridView as GridViewIcon,
   FormatListBulleted as ListViewIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  CloudUpload as CloudUploadIcon,
+  VideogameAsset as VideogameAssetIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  Info as InfoIcon,
+  ErrorOutline as ErrorOutlineIcon
 } from '@mui/icons-material';
-import { productsAPI } from '../../services/api';
+import { productsAPI, uploadAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, useGLTF } from '@react-three/drei';
+import axios from 'axios';
 
 // Default model URL to use as fallback when model loading fails
 const DEFAULT_MODEL_URL = '/models/ftm.glb';
@@ -80,7 +90,9 @@ const ProductCard = styled(Card)(({ theme }) => ({
   position: 'relative',
   height: '100%',
   borderRadius: 16,
-  backgroundColor: alpha(theme.palette.background.paper, 0.6),
+  backgroundColor: theme.palette.mode === 'dark' 
+    ? alpha(theme.palette.background.paper, 0.6) 
+    : '#ffffff',
   backdropFilter: 'blur(10px)',
   boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
   transition: 'transform 0.3s ease, box-shadow 0.3s ease',
@@ -125,24 +137,75 @@ const StyledTooltip = styled(({ className, ...props }) => (
   },
 }));
 
+// Add a utility function to format model URLs consistently
+const formatModelUrl = (url) => {
+  if (!url) return null;
+  
+  // If it's a blob URL (local file), return as is
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    return url;
+  }
+  
+  // Handle relative URLs that are missing the leading slash
+  if (typeof url === 'string' && !url.startsWith('/') && !url.startsWith('http')) {
+    return `/${url}`;
+  }
+  
+  // For URLs starting with /uploads, make them absolute by adding API_URL
+  if (typeof url === 'string' && url.startsWith('/uploads') && import.meta.env.VITE_API_URL) {
+    // Remove any trailing slash from API_URL to avoid double slashes
+    const baseUrl = import.meta.env.VITE_API_URL.endsWith('/') 
+      ? import.meta.env.VITE_API_URL.slice(0, -1) 
+      : import.meta.env.VITE_API_URL;
+    return `${baseUrl}${url}`;
+  }
+  
+  return url;
+};
+
+// Add a utility function to format thumbnail URLs
+const formatThumbnailUrl = (url) => {
+  if (!url) return 'https://via.placeholder.com/300x300?text=No+Image';
+  
+  // If it's already an absolute URL, return as is
+  if (url.startsWith('http') || url.startsWith('blob:')) return url;
+  
+  // Add API URL prefix for relative paths
+  if (url.startsWith('/') && import.meta.env.VITE_API_URL) {
+    const baseUrl = import.meta.env.VITE_API_URL.endsWith('/') 
+      ? import.meta.env.VITE_API_URL.slice(0, -1) 
+      : import.meta.env.VITE_API_URL;
+    return `${baseUrl}${url}`;
+  }
+  
+  return url;
+};
+
 // Add 3D model component
 const ModelViewer = ({ modelUrl, alt, height = 180 }) => {
   const [modelLoaded, setModelLoaded] = React.useState(false);
   const [showError, setShowError] = React.useState(false);
   const [currentModelUrl, setCurrentModelUrl] = React.useState('');
   const theme = useTheme();
+  const modelViewerRef = React.useRef(null);
 
   // Set up model URL with validation
   React.useEffect(() => {
-    // Validate if the provided URL is valid and use it, otherwise set to null
-    if (modelUrl && typeof modelUrl === 'string') {
-      // Make sure URL has leading slash if it's a relative path
-      const validUrl = !modelUrl.startsWith('/') && !modelUrl.startsWith('http') 
-        ? `/${modelUrl}` 
-        : modelUrl;
-      
-      setCurrentModelUrl(validUrl);
+    // Skip pending uploads
+    if (modelUrl === 'pending-upload') {
+      console.log("ModelViewer - Model is pending upload, not displaying yet");
+      setShowError(true);
+      return;
+    }
+    
+    // Format the URL and use it
+    const formattedUrl = formatModelUrl(modelUrl);
+    
+    if (formattedUrl) {
+      console.log("ModelViewer - Using formatted URL:", formattedUrl);
+      setCurrentModelUrl(formattedUrl);
     } else {
+      console.log("ModelViewer - No valid URL provided, using default:", DEFAULT_MODEL_URL);
       setCurrentModelUrl(DEFAULT_MODEL_URL);
     }
 
@@ -171,56 +234,110 @@ const ModelViewer = ({ modelUrl, alt, height = 180 }) => {
     }
   };
 
+  // Use effect to detect when model-viewer element is loaded
+  React.useEffect(() => {
+    const checkModelLoaded = () => {
+      if (modelViewerRef.current) {
+        // Access the model-viewer element
+        const modelViewer = modelViewerRef.current;
+        
+        // Check if model is loaded
+        if (modelViewer.modelIsVisible) {
+          handleLoad();
+          return;
+        }
+        
+        // Add event listeners to detect loading and errors
+        modelViewer.addEventListener('load', handleLoad);
+        modelViewer.addEventListener('error', handleError);
+        
+        // Set a timeout to handle cases where the load event might not fire
+        const loadingTimeout = setTimeout(() => {
+          if (!modelLoaded) {
+            // Check again if model is loaded 
+            if (modelViewer.modelIsVisible) {
+              handleLoad();
+            }
+          }
+        }, 3000);
+        
+        return () => {
+          modelViewer.removeEventListener('load', handleLoad);
+          modelViewer.removeEventListener('error', handleError);
+          clearTimeout(loadingTimeout);
+        };
+      }
+    };
+    
+    // Wait for model-viewer script to load completely
+    if (document.querySelector('script[src*="model-viewer"]')) {
+      // Small delay to ensure the component is mounted
+      const timer = setTimeout(checkModelLoaded, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentModelUrl, modelLoaded]);
+
   return (
-    <Box 
-      sx={{ 
-        position: 'relative', 
-        height,
-        backgroundColor: 'rgba(0,0,0,0.05)',
-        borderTopLeftRadius: 'inherit',
-        borderTopRightRadius: 'inherit',
-        overflow: 'hidden',
-      }}
-    >
+    <Box sx={{ 
+      position: 'relative', 
+      width: '100%', 
+      height: '100%', 
+      backgroundColor: '#f5f5f5',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      overflow: 'hidden'
+    }}>
       {!modelLoaded && !showError && (
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            bottom: 0, 
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: alpha('#000', 0.04),
-            zIndex: 1
+            backgroundColor: 'rgba(0,0,0,0.1)',
+            zIndex: 2,
           }}
         >
-          <LinearProgress 
-            sx={{ 
-              width: '60%', 
-              borderRadius: 1,
-              backgroundColor: alpha('#fff', 0.2)
-            }} 
-          />
+          <CircularProgress size={30} sx={{ color: theme.palette.primary.main, mb: 1 }} />
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            Loading 3D Model
+          </Typography>
         </Box>
       )}
       
       {showError ? (
         <Box
-          component="img"
-          src="https://via.placeholder.com/300x300?text=No+Model"
-          alt={alt}
           sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.05)',
+            color: 'text.secondary',
+            zIndex: 1,
+            p: 2,
+            textAlign: 'center'
           }}
-        />
+        >
+          <ErrorOutlineIcon sx={{ mb: 1, fontSize: '2rem', color: theme.palette.error.main }} />
+          <Typography variant="caption">
+            Model could not be loaded
+          </Typography>
+        </Box>
       ) : (
         <Box
           component="model-viewer"
+          ref={modelViewerRef}
           src={currentModelUrl}
           alt={alt}
           auto-rotate
@@ -230,6 +347,11 @@ const ModelViewer = ({ modelUrl, alt, height = 180 }) => {
           sx={{
             width: '100%',
             height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             borderTopLeftRadius: 'inherit',
             borderTopRightRadius: 'inherit',
             '--poster-color': 'transparent',
@@ -288,6 +410,157 @@ const ModelViewer = ({ modelUrl, alt, height = 180 }) => {
   );
 };
 
+// Update ModelPreview component
+const ModelPreview = ({ url }) => {
+  const [error, setError] = useState(false);
+  const [isLocalFile, setIsLocalFile] = useState(false);
+  const [formattedUrl, setFormattedUrl] = useState('');
+  const [loadingModel, setLoadingModel] = useState(true);
+  
+  // Format the URL and check if it's a local file URL
+  useEffect(() => {
+    const formatted = formatModelUrl(url);
+    setFormattedUrl(formatted);
+    setLoadingModel(true);
+    setError(false);
+    
+    if (formatted && typeof formatted === 'string' && formatted.startsWith('blob:')) {
+      setIsLocalFile(true);
+    } else {
+      setIsLocalFile(false);
+    }
+    
+    // Log the URL for debugging
+    console.log("ModelPreview - Original URL:", url);
+    console.log("ModelPreview - Formatted URL:", formatted);
+  }, [url]);
+  
+  // Simple Model component for all URLs including local blob URLs
+  const PreviewModel = () => {
+    try {
+      if (!formattedUrl) {
+        return <mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#3f51b5" /></mesh>;
+      }
+      
+      // Load the model (works for both remote and blob URLs)
+      const { scene } = useGLTF(formattedUrl, undefined, (e) => {
+        console.error(`Error loading GLTF model from ${formattedUrl}:`, e);
+        setError(true);
+        setLoadingModel(false);
+      });
+      
+      useEffect(() => {
+        if (scene) {
+          setLoadingModel(false);
+          
+          // Log success for debugging
+          console.log(`Successfully loaded model preview for ${isLocalFile ? 'local' : 'remote'} file:`, formattedUrl);
+        }
+      }, [scene]);
+      
+      // Auto-rotate the model for better visualization
+      const modelRef = useRef();
+      useFrame((state) => {
+        if (modelRef.current) {
+          // Gentle rotation
+          modelRef.current.rotation.y = state.clock.getElapsedTime() * 0.3;
+        }
+      });
+      
+      return (
+        <group>
+          <primitive 
+            ref={modelRef} 
+            object={scene} 
+            scale={[1, 1, 1]} 
+            position={[0, 0, 0]} 
+          />
+        </group>
+      );
+    } catch (err) {
+      console.error("Error loading model preview:", err);
+      setError(true);
+      setLoadingModel(false);
+      return <mesh><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#f44336" /></mesh>;
+    }
+  };
+  
+  if (error) {
+    return (
+      <Box 
+        sx={{ 
+          width: '100%', 
+          height: '200px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          backgroundColor: alpha('#000', 0.2),
+          borderRadius: 2
+        }}
+      >
+        <Typography color="error">Failed to load model</Typography>
+      </Box>
+    );
+  }
+  
+  return (
+    <Box sx={{ width: '100%', height: '200px', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+      <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
+        <ambientLight intensity={0.5} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
+        <pointLight position={[-10, -10, -10]} />
+        <Suspense fallback={null}>
+          <PreviewModel />
+        </Suspense>
+        <OrbitControls 
+          enableZoom={true}
+          enablePan={false}
+          rotateSpeed={0.8}
+          maxPolarAngle={Math.PI / 1.5}
+          minPolarAngle={Math.PI / 6}
+        />
+      </Canvas>
+      
+      {loadingModel && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 1,
+          }}
+        >
+          <CircularProgress color="primary" size={30} />
+        </Box>
+      )}
+      
+      {isLocalFile && (
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            fontSize: '0.7rem',
+            borderRadius: 4,
+            padding: '4px 8px',
+            zIndex: 2,
+          }}
+        >
+          Local File Preview
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 // Add product item renderer hook
 const useProductRenderer = () => {
   const theme = useTheme();
@@ -303,27 +576,43 @@ const useProductRenderer = () => {
     }
   }, []);
 
+  // Helper function to convert prices from cents to dollars
+  const formatPrice = (price) => {
+    if (!price) return '0.00';
+    
+    // Ensure the price is a number
+    const numericPrice = Number(price);
+    if (isNaN(numericPrice)) return '0.00';
+    
+    // Convert cents to dollars with 2 decimal places
+    return (numericPrice / 100).toFixed(2);
+  };
+
   const renderGridItem = (product, handleOpenDialog, handleDeleteProduct) => {
     return (
       <Grid item xs={12} sm={6} md={4} lg={3} key={product._id}>
         <ProductCard>
-          <Box className="model-container" sx={{ position: 'relative' }}>
+          <Box className="model-container" sx={{ position: 'relative', height: 200, width: '100%' }}>
             {product.modelUrl ? (
               <ModelViewer 
                 modelUrl={product.modelUrl} 
-                alt={product.name} 
+                alt={product.name}
               />
             ) : (
               <Box 
                 component="img"
-                src={product.thumbnailUrl || 'https://via.placeholder.com/300x300?text=No+Image'}
+                src={formatThumbnailUrl(product.thumbnailUrl)}
                 alt={product.name}
                 sx={{ 
                   width: '100%',
-                  height: 180,
+                  height: 200,
                   objectFit: 'cover',
                   borderTopLeftRadius: 16,
                   borderTopRightRadius: 16,
+                  backgroundColor: '#f5f5f5',
+                }}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/300x300?text=No+Image';
                 }}
               />
             )}
@@ -347,18 +636,18 @@ const useProductRenderer = () => {
               label={product.inStock ? `${product.stockQuantity} in stock` : 'Out of Stock'}
               color={product.inStock ? (product.stockQuantity > 10 ? 'success' : 'warning') : 'error'}
               size="small"
-              variant="outlined"
+              variant="filled"
               sx={{ 
                 position: 'absolute',
                 bottom: 12,
                 left: 12,
                 fontWeight: 500,
                 fontSize: '0.7rem',
-                backgroundColor: alpha(
-                  theme.palette[product.inStock ? (product.stockQuantity > 10 ? 'success' : 'warning') : 'error'].main, 
-                  0.1
-                ),
-                zIndex: 2
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                zIndex: 2,
+                '& .MuiChip-label': {
+                  px: 1
+                }
               }}
             />
           </Box>
@@ -371,12 +660,14 @@ const useProductRenderer = () => {
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              color: theme.palette.mode === 'dark' ? '#fff' : '#000',
             }}>
               {product.name}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ 
               mb: 1.5,
-              height: 40,
+              minHeight: 40,
+              maxHeight: 40,
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
@@ -399,7 +690,7 @@ const useProductRenderer = () => {
                   alignItems: 'baseline',
                   gap: 0.75
                 }}>
-                  ${(product.price / 100).toFixed(2)}
+                  ${formatPrice(product.price)}
                   {product.discount > 0 && (
                     <Typography 
                       variant="caption" 
@@ -412,7 +703,7 @@ const useProductRenderer = () => {
                         opacity: 0.7
                       }}
                     >
-                      ${((product.price / 100) * (1 + product.discount / 100)).toFixed(2)}
+                      ${formatPrice(product.price * (1 + product.discount / 100))}
                     </Typography>
                   )}
                 </Typography>
@@ -426,13 +717,15 @@ const useProductRenderer = () => {
               }} />
             </Box>
           </Box>
-          <Divider sx={{ opacity: 0.1 }} />
+          <Divider sx={{ opacity: theme.palette.mode === 'dark' ? 0.1 : 0.2 }} />
           <Box sx={{ 
             p: 1.5, 
             display: 'flex', 
             justifyContent: 'space-between',
             gap: 1,
-            backgroundColor: alpha(theme.palette.background.paper, 0.3),
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? alpha(theme.palette.background.paper, 0.3)
+              : alpha(theme.palette.background.default, 0.5),
           }}>
             <StyledTooltip title="View Details">
               <IconButton 
@@ -514,6 +807,12 @@ const Products = () => {
     thumbnailUrl: '',
   });
   const [validationErrors, setValidationErrors] = useState({});
+  const [modelFile, setModelFile] = useState(null);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [modelPreviewUrl, setModelPreviewUrl] = useState('');
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState('');
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Add these at the beginning of the Products component
   const { renderGridItem } = useProductRenderer();
@@ -576,6 +875,19 @@ const Products = () => {
         price: product.price / 100, // Convert cents to dollars for form display
       });
       setSelectedProduct(product);
+      
+      // Set preview URLs if product has model/thumbnail
+      if (product.modelUrl) {
+        setModelPreviewUrl(product.modelUrl);
+      } else {
+        setModelPreviewUrl('');
+      }
+      
+      if (product.thumbnailUrl) {
+        setThumbnailPreviewUrl(product.thumbnailUrl);
+      } else {
+        setThumbnailPreviewUrl('');
+      }
     } else {
       setProductForm({
         name: '',
@@ -596,7 +908,13 @@ const Products = () => {
         thumbnailUrl: '',
       });
       setSelectedProduct(null);
+      setModelPreviewUrl('');
+      setThumbnailPreviewUrl('');
     }
+    
+    // Reset file states
+    setModelFile(null);
+    setThumbnailFile(null);
     setValidationErrors({});
     setOpenDialog(true);
   };
@@ -669,90 +987,206 @@ const Products = () => {
     }));
   };
 
+  const handleFileChange = (e, fileType) => {
+    const file = e.target.files[0];
+    
+    if (!file) return;
+    
+    // Reset upload progress
+    setUploadProgress(0);
+    
+    // Validate file
+    if (fileType === 'model') {
+      // Check if file is .glb
+      if (file.name.split('.').pop().toLowerCase() !== 'glb') {
+        showNotification('Only .glb files are allowed for 3D models', 'error');
+        return;
+      }
+      
+      // Check file size (limit to 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showNotification('Model file size should be less than 10MB', 'error');
+        return;
+      }
+      
+      showNotification('3D model selected. Preview loading...', 'info');
+      
+      // Create object URL for preview
+      const objectUrl = URL.createObjectURL(file);
+      setModelPreviewUrl(objectUrl);
+      setModelFile(file);
+      
+      // Update form with placeholder until file is uploaded
+      setProductForm(prev => ({
+        ...prev,
+        modelUrl: 'pending-upload'
+      }));
+      
+      console.log('3D model file selected:', file.name, 'size:', Math.round(file.size / 1024), 'KB');
+    } else if (fileType === 'thumbnail') {
+      // Check if file is an image
+      if (!file.type.startsWith('image/')) {
+        showNotification('Only image files are allowed for thumbnails', 'error');
+        return;
+      }
+      
+      // Check file size (limit to 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        showNotification('Thumbnail file size should be less than 2MB', 'error');
+        return;
+      }
+      
+      // Create object URL for preview
+      const objectUrl = URL.createObjectURL(file);
+      setThumbnailPreviewUrl(objectUrl);
+      setThumbnailFile(file);
+      
+      // Update form with placeholder until file is uploaded
+      setProductForm(prev => ({
+        ...prev,
+        thumbnailUrl: 'pending-upload'
+      }));
+      
+      console.log('Thumbnail file selected:', file.name, 'size:', Math.round(file.size / 1024), 'KB');
+    }
+  };
+
+  const uploadFiles = async () => {
+    if (!modelFile && !thumbnailFile) {
+      return true; // Nothing to upload
+    }
+    
+    try {
+      setUploadingFiles(true);
+      setUploadProgress(0);
+
+      const uploadPromise = new Promise((resolve, reject) => {
+        // Create FormData for upload
+        const formData = new FormData();
+        
+        if (modelFile) {
+          formData.append('model', modelFile);
+          console.log('Adding model file to upload:', modelFile.name, `(${Math.round(modelFile.size / 1024)} KB)`);
+        }
+        
+        if (thumbnailFile) {
+          formData.append('thumbnail', thumbnailFile);
+          console.log('Adding thumbnail file to upload:', thumbnailFile.name, `(${Math.round(thumbnailFile.size / 1024)} KB)`);
+        }
+        
+        // Create custom axios instance for this upload
+        const uploadInstance = axios.create({
+          baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        // Make request with progress tracking
+        uploadInstance.post('/upload/product-files', formData, {
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`Upload progress: ${percentCompleted}%`);
+            setUploadProgress(percentCompleted);
+          }
+        })
+        .then(response => {
+          resolve(response);
+        })
+        .catch(error => {
+          reject(error);
+        });
+      });
+      
+      // Wait for upload to complete
+      showNotification('Uploading files...', 'info');
+      const response = await uploadPromise;
+      const data = response.data;
+      
+      console.log('Server response data:', data);
+      
+      // Validate the response contains the expected URLs
+      let isValidResponse = true;
+      
+      if (modelFile && !data.modelUrl && !data.modelFullUrl) {
+        console.error('Server did not return model URL in response');
+        isValidResponse = false;
+      }
+      
+      if (thumbnailFile && !data.thumbnailUrl && !data.thumbnailFullUrl) {
+        console.error('Server did not return thumbnail URL in response');
+        isValidResponse = false;
+      }
+      
+      if (!isValidResponse) {
+        showNotification('Server returned an invalid response - missing file URLs', 'error');
+        return false;
+      }
+      
+      // Update form with URLs from server (prefer full URLs when available)
+      const updatedForm = {
+        ...productForm
+      };
+      
+      if (modelFile) {
+        // Use full URL if available, otherwise fall back to relative URL
+        updatedForm.modelUrl = data.modelFullUrl || data.modelUrl;
+        console.log('Model uploaded successfully, URL:', updatedForm.modelUrl);
+      }
+      
+      if (thumbnailFile) {
+        // Use full URL if available, otherwise fall back to relative URL
+        updatedForm.thumbnailUrl = data.thumbnailFullUrl || data.thumbnailUrl;
+        console.log('Thumbnail uploaded successfully, URL:', updatedForm.thumbnailUrl);
+      }
+      
+      // Update product form with new URLs
+      setProductForm(updatedForm);
+      
+      showNotification('Files uploaded successfully', 'success');
+      
+      // Clean up object URLs to prevent memory leaks
+      if (modelPreviewUrl && modelPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(modelPreviewUrl);
+      }
+      
+      if (thumbnailPreviewUrl && thumbnailPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(thumbnailPreviewUrl);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      const errorMessage = error.response?.data?.message || error.message;
+      showNotification(`Failed to upload files: ${errorMessage}`, 'error');
+      return false;
+    } finally {
+      setUploadingFiles(false);
+      setUploadProgress(0);
+    }
+  };
+
   const validateForm = () => {
     const errors = {};
     
-    // Required fields validation
-    if (!productForm.name?.trim()) errors.name = 'Product name is required';
-    if (!productForm.description?.trim()) errors.description = 'Description is required';
-    
-    // Price validation
-    if (!productForm.price) {
-      errors.price = 'Price is required';
-    } else if (isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) < 0) {
-      errors.price = 'Price must be a valid positive number';
-    }
-    
-    // Category validation
+    // Validate required fields
+    if (!productForm.name) errors.name = 'Name is required';
+    if (!productForm.description) errors.description = 'Description is required';
+    if (!productForm.price) errors.price = 'Price is required';
     if (!productForm.category) errors.category = 'Category is required';
+    if (!productForm.stockQuantity && productForm.stockQuantity !== 0) errors.stockQuantity = 'Stock quantity is required';
     
-    // Image validation
-    if (!productForm.images || productForm.images.length === 0) {
-      errors.images = 'At least one image URL is required';
-    } else if (productForm.images.some(url => !isValidUrl(url.trim()))) {
-      errors.images = 'One or more image URLs are invalid';
+    // Validate new product has either model/thumbnail or URLs
+    if (!selectedProduct) {
+      if (!modelFile && !productForm.modelUrl) errors.modelUrl = 'Model file is required';
+      if (!thumbnailFile && !productForm.thumbnailUrl) errors.thumbnailUrl = 'Thumbnail image is required';
     }
     
-    // Thumbnail validation
-    if (!productForm.thumbnailUrl?.trim()) {
-      errors.thumbnailUrl = 'Thumbnail URL is required';
-    } else if (!isValidUrl(productForm.thumbnailUrl)) {
-      errors.thumbnailUrl = 'Invalid thumbnail URL format';
-    }
-    
-    // 3D Model URL validation
-    if (productForm.modelUrl?.trim()) {
-      const modelUrl = productForm.modelUrl.trim();
-      
-      // Check if it's a valid URL
-      if (!isValidUrl(modelUrl) && !isValidRelativePath(modelUrl)) {
-        errors.modelUrl = 'Invalid model URL format. Use a valid URL or relative path.';
-      }
-      
-      // Verify it has .glb extension
-      if (!modelUrl.endsWith('.glb')) {
-        errors.modelUrl = 'Model URL must point to a .glb file';
-      }
-    }
-    // Model URL is optional, so no validation error if it's empty
-    
-    // Stock quantity validation
-    if (productForm.stockQuantity < 0) {
-      errors.stockQuantity = 'Stock quantity cannot be negative';
-    }
-    
-    // Discount validation
-    if (productForm.discount < 0 || productForm.discount > 100) {
-      errors.discount = 'Discount must be between 0 and 100';
-    }
-    
-    // Weight validation
-    if (productForm.weight.value < 0) {
-      errors.weightValue = 'Weight cannot be negative';
-    }
-    
-    // Set validation errors to state
+    // Set validation errors
     setValidationErrors(errors);
     
-    // Return true if no errors, false otherwise
+    // Return true if no errors
     return Object.keys(errors).length === 0;
-  };
-
-  const isValidUrl = (url) => {
-    try {
-      // Check if it's an absolute URL
-      new URL(url);
-      return true;
-    } catch (e) {
-      // Not a valid absolute URL
-      return false;
-    }
-  };
-
-  const isValidRelativePath = (path) => {
-    // Valid relative paths should start with / or not start with protocol (http://, https://)
-    return path.startsWith('/') || 
-      !(path.startsWith('http://') || path.startsWith('https://') || path.startsWith('ftp://'));
   };
 
   const handleSubmit = async (e) => {
@@ -765,6 +1199,35 @@ const Products = () => {
     
     try {
       setLoading(true);
+      
+      // Check if we have files that need upload but weren't uploaded yet
+      if ((modelFile && productForm.modelUrl === 'pending-upload') || 
+          (thumbnailFile && productForm.thumbnailUrl === 'pending-upload')) {
+        
+        console.log('Files need to be uploaded before saving');
+        showNotification('Uploading files before saving product...', 'info');
+        
+        // Upload files first if needed
+        const filesUploaded = await uploadFiles();
+        if (!filesUploaded) {
+          showNotification('Failed to upload files', 'error');
+          setLoading(false);
+          return;
+        }
+        
+        // Verify that the upload provided actual URLs
+        if (modelFile && (productForm.modelUrl === 'pending-upload' || !productForm.modelUrl)) {
+          showNotification('Model upload failed - no URL received from server', 'error');
+          setLoading(false);
+          return;
+        }
+        
+        if (thumbnailFile && (productForm.thumbnailUrl === 'pending-upload' || !productForm.thumbnailUrl)) {
+          showNotification('Thumbnail upload failed - no URL received from server', 'error');
+          setLoading(false);
+          return;
+        }
+      }
       
       // Format the data for submission
       const submissionData = {
@@ -792,13 +1255,16 @@ const Products = () => {
         showNotification('Product created successfully');
       }
       
-      // Reload products to reflect changes
-      fetchProducts();
+      console.log('API Response:', response);
+      
+      // Reset form and close dialog
       handleCloseDialog();
+      
+      // Refresh products list
+      fetchProducts();
     } catch (error) {
-      console.error('Failed to save product:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to save product';
-      showNotification(errorMessage, 'error');
+      console.error('Error saving product:', error);
+      showNotification(`Failed to save product: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -1129,7 +1595,7 @@ const Products = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        ${(product.price / 100).toFixed(2)}
+                        ${formatPrice(product.price)}
                         </Typography>
                         {product.discount > 0 && (
                           <Typography variant="caption" color="error.main" sx={{ fontWeight: 500 }}>
@@ -1241,8 +1707,465 @@ const Products = () => {
           {selectedProduct ? 'Edit Product' : 'Add New Product'}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
-          {/* Product form fields go here */}
-          {/* Additional form fields as needed */}
+          <Grid container spacing={3}>
+            {/* Basic Information */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 500, opacity: 0.8 }}>
+                Basic Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Product Name"
+                    name="name"
+                    value={productForm.name}
+                    onChange={handleInputChange}
+                    error={!!validationErrors.name}
+                    helperText={validationErrors.name}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Price (USD)"
+                    name="price"
+                    type="number"
+                    value={productForm.price}
+                    onChange={handleInputChange}
+                    error={!!validationErrors.price}
+                    helperText={validationErrors.price}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Description"
+                    name="description"
+                    multiline
+                    rows={4}
+                    value={productForm.description}
+                    onChange={handleInputChange}
+                    error={!!validationErrors.description}
+                    helperText={validationErrors.description}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl 
+                    fullWidth
+                    error={!!validationErrors.category}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  >
+                    <InputLabel>Category</InputLabel>
+                    <Select
+                      value={productForm.category}
+                      name="category"
+                      onChange={handleInputChange}
+                      label="Category"
+                    >
+                      {categoryOptions.map((category) => (
+                        <MenuItem key={category} value={category}>{category}</MenuItem>
+                      ))}
+                    </Select>
+                    {validationErrors.category && (
+                      <FormHelperText>{validationErrors.category}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Sub-Category"
+                    name="subCategory"
+                    value={productForm.subCategory}
+                    onChange={handleInputChange}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Grid>
+            
+            {/* Inventory */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mb: 2, mt: 1, fontWeight: 500, opacity: 0.8 }}>
+                Inventory
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Stock Quantity"
+                    name="stockQuantity"
+                    type="number"
+                    value={productForm.stockQuantity}
+                    onChange={handleInputChange}
+                    error={!!validationErrors.stockQuantity}
+                    helperText={validationErrors.stockQuantity}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={productForm.inStock}
+                        onChange={handleInputChange}
+                        name="inStock"
+                        color="primary"
+                      />
+                    }
+                    label="In Stock"
+                    sx={{ mt: 1 }}
+                  />
+                </Grid>
+              </Grid>
+            </Grid>
+            
+            {/* Media Files */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mb: 2, mt: 1, fontWeight: 500, opacity: 0.8 }}>
+                Media Files
+              </Typography>
+              <Grid container spacing={3}>
+                {/* 3D Model Upload */}
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    3D Model (.glb)
+                  </Typography>
+                  
+                  {modelPreviewUrl ? (
+                    <Box sx={{ mb: 2 }}>
+                      <ModelPreview url={modelPreviewUrl} />
+                      
+                      {uploadingFiles && modelFile && (
+                        <Box sx={{ width: '100%', mt: 1 }}>
+                          <Typography variant="caption" sx={{ mb: 0.5, display: 'block' }}>
+                            Uploading: {uploadProgress}%
+                          </Typography>
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={uploadProgress} 
+                            sx={{ height: 8, borderRadius: 1 }}
+                          />
+                        </Box>
+                      )}
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        <Typography variant="caption" sx={{ 
+                          color: alpha(theme.palette.primary.main, 0.8),
+                          display: 'flex',
+                          alignItems: 'center' 
+                        }}>
+                          {modelFile ? (
+                            <>
+                              <CheckCircleOutlineIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                              {modelFile.name} ({Math.round(modelFile.size / 1024)} KB)
+                            </>
+                          ) : (
+                            <>
+                              <InfoIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                              Using existing model
+                            </>
+                          )}
+                        </Typography>
+                        
+                        <Button 
+                          variant="outlined" 
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            setModelPreviewUrl('');
+                            setModelFile(null);
+                            setProductForm(prev => ({
+                              ...prev,
+                              modelUrl: ''
+                            }));
+                          }}
+                          disabled={uploadingFiles}
+                        >
+                          Remove
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
+                        borderRadius: 2,
+                        p: 3,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        mb: 2,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1),
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.background.paper, 0.2),
+                          borderColor: alpha(theme.palette.primary.main, 0.5)
+                        }
+                      }}
+                      component="label"
+                    >
+                      <input
+                        type="file"
+                        accept=".glb"
+                        hidden
+                        onChange={(e) => handleFileChange(e, 'model')}
+                        disabled={uploadingFiles}
+                      />
+                      <VideogameAssetIcon 
+                        sx={{ 
+                          fontSize: 40, 
+                          color: alpha(theme.palette.primary.main, 0.7),
+                          mb: 1.5
+                        }} 
+                      />
+                      <Typography variant="body2">
+                        Drag & drop your 3D model here or click to browse
+                      </Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.6, mt: 0.5 }}>
+                        Supported format: .glb (Max: 10MB)
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {validationErrors.modelUrl && (
+                    <Typography color="error" variant="caption">
+                      {validationErrors.modelUrl}
+                    </Typography>
+                  )}
+                </Grid>
+                
+                {/* Thumbnail Upload */}
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Thumbnail Image
+                  </Typography>
+                  
+                  {thumbnailPreviewUrl ? (
+                    <Box sx={{ mb: 2 }}>
+                      <Box
+                        component="img"
+                        src={thumbnailPreviewUrl}
+                        alt="Thumbnail preview"
+                        sx={{ 
+                          width: '100%', 
+                          height: '200px', 
+                          objectFit: 'cover',
+                          borderRadius: 2,
+                          mb: 1
+                        }}
+                      />
+                      
+                      {uploadingFiles && thumbnailFile && (
+                        <Box sx={{ width: '100%', mt: 1 }}>
+                          <Typography variant="caption" sx={{ mb: 0.5, display: 'block' }}>
+                            Uploading: {uploadProgress}%
+                          </Typography>
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={uploadProgress} 
+                            sx={{ height: 8, borderRadius: 1 }}
+                          />
+                        </Box>
+                      )}
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        <Typography variant="caption" sx={{ 
+                          color: alpha(theme.palette.primary.main, 0.8),
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          {thumbnailFile ? (
+                            <>
+                              <CheckCircleOutlineIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                              {thumbnailFile.name} ({Math.round(thumbnailFile.size / 1024)} KB)
+                            </>
+                          ) : (
+                            <>
+                              <InfoIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                              Using existing thumbnail
+                            </>
+                          )}
+                        </Typography>
+                        
+                        <Button 
+                          variant="outlined" 
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            setThumbnailPreviewUrl('');
+                            setThumbnailFile(null);
+                            setProductForm(prev => ({
+                              ...prev,
+                              thumbnailUrl: ''
+                            }));
+                          }}
+                          disabled={uploadingFiles}
+                        >
+                          Remove
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
+                        borderRadius: 2,
+                        p: 3,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        mb: 2,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1),
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.background.paper, 0.2),
+                          borderColor: alpha(theme.palette.primary.main, 0.5)
+                        }
+                      }}
+                      component="label"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) => handleFileChange(e, 'thumbnail')}
+                        disabled={uploadingFiles}
+                      />
+                      <CloudUploadIcon 
+                        sx={{ 
+                          fontSize: 40, 
+                          color: alpha(theme.palette.primary.main, 0.7),
+                          mb: 1.5
+                        }} 
+                      />
+                      <Typography variant="body2">
+                        Drag & drop your image here or click to browse
+                      </Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.6, mt: 0.5 }}>
+                        Supported formats: JPG, PNG, WEBP (Max: 2MB)
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {validationErrors.thumbnailUrl && (
+                    <Typography color="error" variant="caption">
+                      {validationErrors.thumbnailUrl}
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Grid>
+            
+            {/* Additional Information */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mb: 2, mt: 1, fontWeight: 500, opacity: 0.8 }}>
+                Additional Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Ingredients (comma separated)"
+                    name="ingredients"
+                    value={Array.isArray(productForm.ingredients) ? productForm.ingredients.join(', ') : ''}
+                    onChange={(e) => handleArrayInputChange('ingredients', e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Features (comma separated)"
+                    name="features"
+                    value={Array.isArray(productForm.features) ? productForm.features.join(', ') : ''}
+                    onChange={(e) => handleArrayInputChange('features', e.target.value)}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Discount (%)"
+                    name="discount"
+                    type="number"
+                    value={productForm.discount}
+                    onChange={handleInputChange}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Brand"
+                    name="brand"
+                    value={productForm.brand}
+                    onChange={handleInputChange}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: alpha(theme.palette.background.paper, 0.1)
+                      }
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+          
+          {uploadingFiles && (
+            <Box sx={{ width: '100%', mt: 3 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>Uploading files...</Typography>
+              <LinearProgress color="primary" />
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`, p: 2, px: 3 }}>
           <Button 
@@ -1264,13 +2187,17 @@ const Products = () => {
             variant="contained" 
                     color="primary"
             onClick={handleSubmit}
+            disabled={loading || uploadingFiles}
             sx={{ 
               borderRadius: 2,
               boxShadow: `0 4px 14px 0 ${alpha(theme.palette.primary.main, 0.3)}`,
               px: 3
             }}
           >
-            {selectedProduct ? 'Update' : 'Create'}
+            {loading || uploadingFiles ? 
+              <CircularProgress size={24} sx={{ color: '#fff' }} /> : 
+              (selectedProduct ? 'Update' : 'Create')
+            }
           </Button>
         </DialogActions>
       </Dialog>

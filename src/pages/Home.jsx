@@ -1,12 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
 import { motion } from 'framer-motion';
 import JustGirlScene from '../components/justagirl';
+import CursorRipple from '../components/CursorRipple';
 import AnimatedButton from '../components/AnimatedButton';
-import ProductCard from '../components/ProductCard';
-import { productsAPI } from '../services/api';
 import '../styles/pages/Home.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -14,29 +13,6 @@ gsap.registerPlugin(ScrollTrigger);
 const Home = () => {
   const textRef = useRef(null);
   const containerRef = useRef(null);
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch featured products
-  useEffect(() => {
-    const fetchFeaturedProducts = async () => {
-      try {
-        setLoading(true);
-        const response = await productsAPI.getAll({ limit: 6, sort: 'rating' });
-        // Handle potential different response structures
-        const products = Array.isArray(response.data) 
-          ? response.data 
-          : response.data.products || [];
-        setFeaturedProducts(products.slice(0, 6));
-      } catch (error) {
-        console.error('Error fetching featured products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeaturedProducts();
-  }, []);
 
   useEffect(() => {
     // Split text into characters
@@ -108,6 +84,8 @@ const Home = () => {
 
   return (
     <div className="lusion-wrapper" ref={containerRef}>
+      <CursorRipple />
+      
       <main style={{ paddingTop: 0 }}>
         <section className="hero-section">
           <JustGirlScene />
@@ -126,39 +104,20 @@ const Home = () => {
             <span className="year">2024</span>
           </div>
           <div className="work-grid">
-            {loading ? (
-              // Show loading placeholders
-              Array(6).fill(0).map((_, index) => (
-                <div key={index} className="work-item loading-placeholder">
-                  <div className="work-image" style={{ background: 'rgba(255, 255, 255, 0.03)' }}></div>
-                  <div className="work-info">
-                    <div style={{ height: '1.5rem', width: '70%', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '4px' }}></div>
-                    <div style={{ height: '1rem', width: '40%', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '4px', marginTop: '0.5rem' }}></div>
-                  </div>
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <motion.div 
+                key={item} 
+                className="work-item"
+                whileHover={{ y: -10 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <div className="work-image" style={{ backgroundImage: `url('/images/project${item}.jpg')` }}></div>
+                <div className="work-info">
+                  <h3>Product {item}</h3>
+                  <p>Digital Experience</p>
                 </div>
-              ))
-            ) : featuredProducts.length > 0 ? (
-              // Show actual products
-              featuredProducts.map((product) => (
-                <ProductCard key={product._id} product={product} />
-              ))
-            ) : (
-              // Fallback when no products are available
-              Array(6).fill(0).map((_, index) => (
-                <motion.div 
-                  key={index} 
-                  className="work-item"
-                  whileHover={{ y: -10 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                >
-                  <div className="work-image" style={{ backgroundImage: `url('/images/project${index + 1}.jpg')` }}></div>
-                  <div className="work-info">
-                    <h3>Product {index + 1}</h3>
-                    <p>Digital Experience</p>
-                  </div>
-                </motion.div>
-              ))
-            )}
+              </motion.div>
+            ))}
           </div>
         </section>
 

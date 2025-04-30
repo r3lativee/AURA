@@ -30,6 +30,7 @@ import AdminOrders from './pages/admin/Orders';
 import AdminUsers from './pages/admin/Users';
 import { FavoritesProvider } from './context/FavoritesContext';
 import AdminLayout from './layouts/AdminLayout';
+import TestModelLoader from './pages/TestModelLoader';
 
 function App() {
   const textRef = useRef(null);
@@ -248,6 +249,9 @@ function App() {
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="users" element={<AdminUsers />} />
                 </Route>
+
+                <Route path="/products/:id" element={<ProductDetail />} />
+                <Route path="/model-test" element={<TestModelLoader />} />
               </Routes>
             </main>
             {!isAdminRoute && <Footer />}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -19,8 +19,6 @@ import {
   DialogActions,
   Switch,
   FormControlLabel,
-  Badge,
-  Tooltip,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -28,13 +26,11 @@ import InputWithFocusLock from '../components/InputWithFocusLock';
 import { motion } from 'framer-motion';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
 import { authAPI } from '../services/api';
 
 const Profile = () => {
-  const { user, updateProfile, uploadProfileImage, deleteProfileImage } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [imageLoading, setImageLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -60,8 +56,6 @@ const Profile = () => {
     isDefault: false
   });
 
-  const fileInputRef = useRef(null);
-
   useEffect(() => {
     if (user) {
       const defaultAddress = user.addresses?.find(addr => addr.isDefault) || user.addresses?.[0];
@@ -71,8 +65,7 @@ const Profile = () => {
         name: user.name,
         email: user.email,
         phoneNumber: user.phoneNumber,
-        hasAddresses: !!user.addresses?.length,
-        paymentMethods: user.paymentMethods || 'none'
+        hasAddresses: !!user.addresses?.length
       });
       
       setProfileData({
@@ -94,21 +87,12 @@ const Profile = () => {
 
   const fetchPaymentMethods = async () => {
     try {
-      console.log('Fetching payment methods...');
       const response = await authAPI.getPaymentMethods();
-      console.log('Payment methods response:', response.data);
-      
       if (response.data?.success && response.data?.paymentMethods) {
-        console.log('Setting payment methods:', response.data.paymentMethods);
         setPaymentMethods(response.data.paymentMethods);
-      } else {
-        console.warn('No payment methods found in response:', response.data);
-        setPaymentMethods([]);
       }
     } catch (error) {
-      console.error('Error fetching payment methods:', error.response || error);
-      // Set empty array to prevent undefined errors
-      setPaymentMethods([]);
+      console.error('Error fetching payment methods:', error);
       // Don't show a toast here, just log the error
     }
   };
@@ -335,53 +319,6 @@ const Profile = () => {
     }
   };
 
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Please select a valid image file (JPEG, PNG, or GIF)');
-      return;
-    }
-    
-    // Validate file size (5MB max)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-    if (file.size > maxSize) {
-      toast.error('Image file is too large. Please select an image under 5MB');
-      return;
-    }
-    
-    setImageLoading(true);
-    try {
-      await uploadProfileImage(file);
-      toast.success('Profile image updated!');
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Failed to upload image. Please try again.');
-    } finally {
-      setImageLoading(false);
-      // Reset the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-  
-  const handleRemoveImage = async () => {
-    setImageLoading(true);
-    try {
-      await deleteProfileImage();
-      toast.success('Profile image removed');
-    } catch (error) {
-      console.error('Error removing image:', error);
-      toast.error('Failed to remove image. Please try again.');
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
   // Animation variants
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
@@ -406,15 +343,15 @@ const Profile = () => {
         variants={fadeIn}
         style={{ width: '100%' }}
       >
-      <Paper sx={{ 
+        <Paper sx={{ 
           p: { xs: 2, sm: 3, md: 4 }, 
           backgroundColor: '#050505', 
           borderRadius: '20px',
           border: '1px solid rgba(255, 255, 255, 0.05)',
-        maxWidth: 800,
-        width: '100%'
-      }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+          maxWidth: 800,
+          width: '100%'
+        }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
             <Typography variant="h4" gutterBottom align="center" sx={{ 
               fontWeight: 400, 
               mb: 3, 
@@ -423,98 +360,47 @@ const Profile = () => {
               letterSpacing: '-0.5px'
             }}>
               Profile
-          </Typography>
-          
-            <Badge
-              overlap="circular"
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              badgeContent={
-                <Tooltip title="Change profile picture">
-                  <IconButton 
-                    sx={{ 
-                      bgcolor: 'rgba(255, 255, 255, 0.1)', 
-                      '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.2)' } 
-                    }}
-                    onClick={() => fileInputRef.current.click()}
-                    disabled={imageLoading}
-                    size="small"
-                  >
-                    {imageLoading ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : (
-                      <EditIcon fontSize="small" />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              }
+            </Typography>
+            
+            <Avatar
+              src={profileData.profileImage || 'https://i.imgur.com/3tVgsra.png'}
+              alt={profileData.name}
+              sx={{ 
+                width: 100, 
+                height: 100, 
+                bgcolor: 'background.paper',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                mb: 2
+              }}
+              imgProps={{
+                onError: (e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://i.imgur.com/3tVgsra.png';
+                }
+              }}
             >
-          <Avatar
-            src={profileData.profileImage || 'https://i.imgur.com/3tVgsra.png'}
-            alt={profileData.name}
-            sx={{ 
-                  width: 100, 
-                  height: 100, 
-                  bgcolor: 'background.paper',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
-            imgProps={{
-              onError: (e) => {
-                e.target.onerror = null;
-                e.target.src = 'https://i.imgur.com/3tVgsra.png';
-              }
-            }}
-          >
-            {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
-          </Avatar>
-            </Badge>
-            
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              onChange={handleImageUpload}
-              accept="image/jpeg,image/png,image/gif"
-            />
-            
-            <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
-              {profileData.profileImage && !profileData.profileImage.includes('imgur.com') && (
-                <Button 
-                  size="small" 
-                  sx={{ 
-                    fontSize: '0.75rem',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    textTransform: 'none',
-                    '&:hover': { color: '#ef5350' }
-                  }}
-                  startIcon={<DeleteIcon fontSize="small" />}
-                  onClick={handleRemoveImage}
-                  disabled={imageLoading}
-                >
-                  Remove
-                </Button>
-              )}
-            </Box>
+              {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+            </Avatar>
             
             <Typography variant="h5" sx={{ 
               fontWeight: 400,
               fontSize: '1.2rem',
-              mb: 0.5,
-              mt: 1 
+              mb: 0.5 
             }}>
-            {profileData.name}
-          </Typography>
+              {profileData.name}
+            </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-            {profileData.email}
-          </Typography>
+              {profileData.email}
+            </Typography>
             {profileData.phoneNumber && (
               <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)', mt: 0.5 }}>
                 {profileData.phoneNumber}
-          </Typography>
+              </Typography>
             )}
-        </Box>
-        
-        {(success || error) && (
-          <Box sx={{ mb: 3 }}>
+          </Box>
+          
+          {(success || error) && (
+            <Box sx={{ mb: 3 }}>
               {success && (
                 <Alert 
                   severity="success"
@@ -543,19 +429,19 @@ const Profile = () => {
                   {error}
                 </Alert>
               )}
-          </Box>
-        )}
+            </Box>
+          )}
 
-        <form onSubmit={handleProfileUpdate}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                mb: 2,
+          <form onSubmit={handleProfileUpdate}>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  mb: 2,
                   borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
-                pb: 1 
-              }}>
+                  pb: 1 
+                }}>
                   <Typography variant="h6" sx={{ 
                     color: '#fff', 
                     fontWeight: 400,
@@ -563,18 +449,18 @@ const Profile = () => {
                     letterSpacing: '1px',
                     textTransform: 'uppercase'
                   }}>
-                  Personal Information
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <InputWithFocusLock
-                label="Full Name"
-                name="name"
-                value={profileData.name}
-                onChange={handleInputChange}
+                    Personal Information
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InputWithFocusLock
+                  label="Full Name"
+                  name="name"
+                  value={profileData.name}
+                  onChange={handleInputChange}
                   fullWidth
-                required
+                  required
                   inputProps={{
                     style: { 
                       fontWeight: 300,
@@ -582,15 +468,15 @@ const Profile = () => {
                       borderRadius: '20px'
                     }
                   }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <InputWithFocusLock
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InputWithFocusLock
                   label="Email Address"
-                type="email"
-                value={profileData.email}
+                  type="email"
+                  value={profileData.email}
                   fullWidth
-                disabled
+                  disabled
                   helperText="Email cannot be changed"
                   inputProps={{
                     style: { 
@@ -598,17 +484,17 @@ const Profile = () => {
                       backgroundColor: 'rgba(255, 255, 255, 0.02)',
                       borderRadius: '20px'
                     }
-                }}
-              />
-            </Grid>
+                  }}
+                />
+              </Grid>
               <Grid item xs={12}>
-              <InputWithFocusLock
-                label="Phone Number"
-                name="phoneNumber"
-                value={profileData.phoneNumber}
-                onChange={handleInputChange}
+                <InputWithFocusLock
+                  label="Phone Number"
+                  name="phoneNumber"
+                  value={profileData.phoneNumber}
+                  onChange={handleInputChange}
                   fullWidth
-                required
+                  required
                   placeholder="Enter your phone number"
                   helperText="Phone number should be 10-15 digits"
                   inputProps={{
@@ -618,18 +504,18 @@ const Profile = () => {
                       borderRadius: '20px'
                     }
                   }}
-              />
-            </Grid>
+                />
+              </Grid>
               
-            <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                mb: 2,
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  mb: 2,
                   mt: 1,
                   borderBottom: '1px solid rgba(255, 255, 255, 0.05)', 
-                pb: 1 
-              }}>
+                  pb: 1 
+                }}>
                   <Typography variant="h6" sx={{ 
                     color: '#fff', 
                     fontWeight: 400,
@@ -637,18 +523,18 @@ const Profile = () => {
                     letterSpacing: '1px',
                     textTransform: 'uppercase'
                   }}>
-                  Shipping Address
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12}>
-              <InputWithFocusLock
-                label="Street Address"
-                name="street"
-                value={profileData.street}
-                onChange={handleInputChange}
+                    Shipping Address
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <InputWithFocusLock
+                  label="Street Address"
+                  name="street"
+                  value={profileData.street}
+                  onChange={handleInputChange}
                   fullWidth
-                required
+                  required
                   inputProps={{
                     style: { 
                       fontWeight: 300,
@@ -656,14 +542,14 @@ const Profile = () => {
                       borderRadius: '20px'
                     }
                   }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <InputWithFocusLock
-                label="City"
-                name="city"
-                value={profileData.city}
-                onChange={handleInputChange}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <InputWithFocusLock
+                  label="City"
+                  name="city"
+                  value={profileData.city}
+                  onChange={handleInputChange}
                   fullWidth
                   required
                   inputProps={{
@@ -775,7 +661,7 @@ const Profile = () => {
                 ) : (
                   <Grid container spacing={2}>
                     {paymentMethods.map((method) => (
-                      <Grid item xs={12} md={6} key={method._id || Math.random().toString()}>
+                      <Grid item xs={12} md={6} key={method._id}>
                         <Card sx={{ 
                           backgroundColor: 'rgba(255, 255, 255, 0.02)',
                           border: '1px solid rgba(255, 255, 255, 0.05)',
@@ -955,7 +841,7 @@ const Profile = () => {
                   <Switch 
                     checked={newPaymentMethod.isDefault}
                     onChange={handleDefaultChange}
-                color="primary"
+                    color="primary"
                   />
                 }
                 label="Set as default payment method"

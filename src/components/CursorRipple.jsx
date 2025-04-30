@@ -8,15 +8,14 @@ const CursorLineMaterial = shaderMaterial(
   {
     time: 0,
     color: new THREE.Color(1, 1, 1),
-    lineWidth: 0.003,
-    lineLength: 0.12,
-    speed: 0.8,
+    lineWidth: 0.0015,
+    lineLength: 0.08,
+    speed: 0.6,
     fadeOpacity: 1.0,
     resolution: new THREE.Vector2(0, 0),
-    mousePos: new THREE.Vector2(0.5, 0.5), // default position at center
-    prevMousePos: new THREE.Vector2(0.5, 0.5), // default position at center
+    mousePos: new THREE.Vector2(0, 0),
+    prevMousePos: new THREE.Vector2(0, 0),
     movementSpeed: 0.0,
-    glitchAmount: 0.0,
   },
   // Vertex shader
   `
@@ -36,13 +35,8 @@ const CursorLineMaterial = shaderMaterial(
     uniform float lineLength;
     uniform float movementSpeed;
     uniform float fadeOpacity;
-    uniform float glitchAmount;
     
     varying vec2 vUv;
-    
-    float random(vec2 st) {
-      return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
-    }
     
     float distToLine(vec2 p, vec2 a, vec2 b) {
       vec2 pa = p - a;
@@ -61,66 +55,27 @@ const CursorLineMaterial = shaderMaterial(
       vec2 st = gl_FragCoord.xy / resolution.xy;
       st.y = 1.0 - st.y; // Flip y
       
-      // Apply glitch effect when moving fast
-      vec2 adjustedPrevMousePos = prevMousePos;
-      if (glitchAmount > 0.1) {
-        float noise = random(st + time) * 2.0 - 1.0;
-        adjustedPrevMousePos += vec2(noise, noise) * glitchAmount * 0.01;
-      }
-      
-      // Calculate multiple trail segments for a longer trail effect
-      float dist1 = distToLine(st, adjustedPrevMousePos, mousePos);
-      
-      // Create additional segments for a longer trail
-      vec2 dir = mousePos - adjustedPrevMousePos;
-      vec2 offsetPos = adjustedPrevMousePos - dir * 0.5;
-      vec2 offsetPos2 = adjustedPrevMousePos - dir * 1.0;
-      
-      float dist2 = distToLine(st, offsetPos, adjustedPrevMousePos);
-      float dist3 = distToLine(st, offsetPos2, offsetPos);
+      float dist = distToLine(st, prevMousePos, mousePos);
       
       // Dynamic line width based on movement speed
-      float width = lineWidth * (1.0 + movementSpeed * 8.0);
+      float width = lineWidth * (1.0 + movementSpeed * 6.0);
+      float intensity = smoothstep(width, 0.0, dist);
       
-      // Create intensity for each segment with different falloff for longer trail
-      float intensity1 = smoothstep(width, 0.0, dist1);
-      float intensity2 = smoothstep(width * 0.9, 0.0, dist2) * 0.8;
-      float intensity3 = smoothstep(width * 0.8, 0.0, dist3) * 0.6;
-      
-      // Combine intensities
-      float combinedIntensity = max(intensity1, max(intensity2, intensity3));
-      
-      // Base color
+      // RGB color based on time and movement
       float hue = fract(time * 0.15 + movementSpeed);
       vec3 rgbColor = hsvToRgb(vec3(hue, 0.9, 1.0));
       
       // Add enhanced glow effect
-      float glow = smoothstep(width * 8.0, 0.0, min(dist1, min(dist2, dist3))) * 0.8;
+      float glow = smoothstep(width * 6.0, 0.0, dist) * 0.7;
       
       // Fade out based on distance from current mouse position
       float distFromCurrent = length(st - mousePos);
       float fade = smoothstep(lineLength, 0.0, distFromCurrent);
       
-      // Add glitch effect when moving fast
-      if (glitchAmount > 0.2) {
-        float glitchNoise = random(st * 10.0 + time * 5.0);
-        rgbColor = mix(rgbColor, vec3(glitchNoise), glitchAmount * 0.1);
-        
-        // Add color shift for glitch effect
-        vec3 shiftedColor = hsvToRgb(vec3(fract(hue + 0.33), 0.9, 1.0));
-        rgbColor = mix(rgbColor, shiftedColor, glitchNoise * glitchAmount);
-      }
-      
-      // Make the cursor always somewhat visible even when not moving fast
-      float baseVisibility = 0.15;
-      
       // Final color combining intensity, RGB, glow, and fade
-      vec3 finalColor = rgbColor * (combinedIntensity + glow);
+      vec3 finalColor = rgbColor * intensity + rgbColor * glow * 0.6;
       
-      // Ensure minimum visibility when mouse is on screen
-      float alpha = max(baseVisibility, (combinedIntensity + glow) * fade * fadeOpacity);
-      
-      gl_FragColor = vec4(finalColor, alpha);
+      gl_FragColor = vec4(finalColor, (intensity + glow) * fade * fadeOpacity);
     }
   `
 );
@@ -130,13 +85,10 @@ extend({ CursorLineMaterial });
 function CursorLineEffect() {
   const materialRef = useRef();
   const { viewport, size } = useThree();
-  const mousePos = useRef(new THREE.Vector2(0.5, 0.5)); // Start in the center
-  const prevMousePos = useRef(new THREE.Vector2(0.5, 0.5)); // Start in the center
+  const mousePos = useRef(new THREE.Vector2(0, 0));
+  const prevMousePos = useRef(new THREE.Vector2(0, 0));
   const lastMoveTime = useRef(0);
   const movementSpeed = useRef(0);
-  const glitchAmount = useRef(0);
-  const lastPositions = useRef([]);
-  const isMouseOverCanvas = useRef(false);
   
   useEffect(() => {
     const updateMousePosition = (e) => {
@@ -154,16 +106,7 @@ function CursorLineEffect() {
         const newSpeed = Math.sqrt(dx * dx + dy * dy) / dt;
         
         // Smooth the movement speed
-        movementSpeed.current = movementSpeed.current * 0.7 + newSpeed * 0.3;
-        
-        // Set glitch amount based on movement speed
-        glitchAmount.current = Math.max(0, movementSpeed.current - 0.3) * 0.8;
-      }
-      
-      // Store last few positions for trail
-      lastPositions.current.unshift({ x, y, time: now });
-      if (lastPositions.current.length > 10) {
-        lastPositions.current.pop();
+        movementSpeed.current = movementSpeed.current * 0.8 + newSpeed * 0.2;
       }
       
       // Update previous mouse position
@@ -175,29 +118,16 @@ function CursorLineEffect() {
       mousePos.current.y = y;
       
       lastMoveTime.current = now;
-      isMouseOverCanvas.current = true;
-    };
-    
-    const handleMouseOut = () => {
-      isMouseOverCanvas.current = false;
-    };
-    
-    const handleMouseOver = () => {
-      isMouseOverCanvas.current = true;
     };
 
     window.addEventListener('mousemove', updateMousePosition);
     window.addEventListener('touchmove', (e) => {
       updateMousePosition(e.touches[0]);
     });
-    document.addEventListener('mouseout', handleMouseOut);
-    document.addEventListener('mouseover', handleMouseOver);
 
     return () => {
       window.removeEventListener('mousemove', updateMousePosition);
       window.removeEventListener('touchmove', updateMousePosition);
-      document.removeEventListener('mouseout', handleMouseOut);
-      document.removeEventListener('mouseover', handleMouseOver);
     };
   }, [size]);
 
@@ -211,16 +141,14 @@ function CursorLineEffect() {
       materialRef.current.prevMousePos = prevMousePos.current;
       materialRef.current.resolution = new THREE.Vector2(size.width, size.height);
       materialRef.current.movementSpeed = Math.min(1.0, movementSpeed.current);
-      materialRef.current.glitchAmount = glitchAmount.current;
       
-      // Gradually decrease movement speed and glitch amount
+      // Gradually decrease movement speed
       movementSpeed.current *= 0.95;
-      glitchAmount.current *= 0.9;
       
-      // Fade out when not moving for a while or mouse is not over canvas
+      // Fade out when not moving for a while
       const timeSinceLastMove = performance.now() - lastMoveTime.current;
-      if (!isMouseOverCanvas.current || timeSinceLastMove > 1000) {
-        materialRef.current.fadeOpacity = Math.max(0.1, 1 - (timeSinceLastMove - 1000) / 2000);
+      if (timeSinceLastMove > 1000) {
+        materialRef.current.fadeOpacity = Math.max(0, 1 - (timeSinceLastMove - 1000) / 1000);
       } else {
         materialRef.current.fadeOpacity = 1.0;
       }
@@ -236,15 +164,6 @@ function CursorLineEffect() {
 }
 
 export default function CursorRipple() {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-  
-  if (!mounted) return null;
-  
   return (
     <div className="cursor-ripple-container">
       <Canvas style={{ position: 'fixed', top: 0, left: 0, zIndex: 100, pointerEvents: 'none' }}>

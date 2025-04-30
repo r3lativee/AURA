@@ -9,17 +9,16 @@
 }
 
 .login-card {
-  background: linear-gradient(145deg, #1e1e1e, #121212);
-  padding: 3rem;
-  border-radius: 18px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: #1A1A1A;
+  padding: 2.5rem;
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 450px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   margin: 0 auto;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(10px);
 }
 
 .login-card::before {
@@ -31,12 +30,12 @@
   height: 200%;
   background: radial-gradient(
     circle at center,
-    rgba(100, 108, 255, 0.12),
-    transparent 40%
+    rgba(100, 108, 255, 0.08),
+    transparent 30%
   );
   opacity: 0;
   transform: scale(0.8);
-  animation: pulse 10s infinite;
+  animation: pulse 8s infinite;
   pointer-events: none;
   z-index: 0;
 }
@@ -48,15 +47,14 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   position: relative;
   z-index: 1;
 }
 
 .login-animation {
-  width: 220px;
+  width: 200px;
   height: 180px;
-  filter: drop-shadow(0 5px 15px rgba(100, 108, 255, 0.3));
 }
 
 @keyframes pulse {
@@ -65,7 +63,7 @@
     transform: scale(0.8);
   }
   50% {
-    opacity: 0.2;
+    opacity: 0.1;
     transform: scale(1);
   }
   100% {
@@ -76,16 +74,9 @@
 
 .login-header {
   text-align: center;
-  margin-bottom: 3.5rem;
+  margin-bottom: 2rem;
   position: relative;
   z-index: 1;
-  font-weight: 700;
-  font-size: 2.5rem;
-  background: linear-gradient(90deg, #ffffff, #646cff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  letter-spacing: -0.02em;
 }
 
 .login-title {
@@ -107,12 +98,11 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.8rem;
+  gap: 1.5rem;
   max-width: 400px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
-  margin-top: 1rem;
 }
 
 .form-group {
@@ -122,35 +112,34 @@
 
 .form-input {
   width: 100%;
-  padding: 1.2rem 1.2rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   z-index: 10;
   position: relative;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .form-input:focus {
   outline: none;
-  border-color: rgba(100, 108, 255, 0.7);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.15), inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-color: #646cff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .form-label {
   position: absolute;
-  left: 1.2rem;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.6);
+  color: #a0a0a0;
   transition: all 0.3s ease;
   pointer-events: none;
   z-index: 5;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .form-input:focus ~ .form-label,
@@ -166,19 +155,18 @@
 }
 
 .login-button {
-  background: linear-gradient(135deg, #646cff, #8f94ff);
+  background: #323232;
   color: white;
-  padding: 1.1rem;
+  padding: 1rem;
   border: none;
-  border-radius: 12px;
-  font-size: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 0.5rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
 }
 
 .login-button::before {
@@ -191,10 +179,10 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0.1),
     transparent
   );
-  transition: all 0.6s ease;
+  transition: all 0.5s ease;
 }
 
 .login-button:hover::before {
@@ -202,21 +190,19 @@
 }
 
 .login-button:hover {
-  background: linear-gradient(135deg, #5158cc, #7a7ee6);
+  background: #3c3c3c;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(100, 108, 255, 0.4);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .login-button:active {
   transform: translateY(0);
-  box-shadow: 0 3px 8px rgba(100, 108, 255, 0.3);
 }
 
 .login-button:disabled {
-  background: linear-gradient(135deg, #535353, #414141);
+  background: #2a2a2a;
   cursor: not-allowed;
   opacity: 0.7;
-  box-shadow: none;
 }
 
 .login-footer {
@@ -239,19 +225,17 @@
 .error-message {
   background: rgba(255, 59, 48, 0.1);
   color: #ff3b30;
-  padding: 1rem 1.2rem;
+  padding: 1rem;
   border-radius: 10px;
   margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  border: 1px solid rgba(255, 59, 48, 0.2);
-  backdrop-filter: blur(4px);
+  font-size: 0.875rem;
 }
 
 .register-link {
   text-align: center;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .register-link a {
@@ -269,13 +253,13 @@
   bottom: -2px;
   left: 0;
   width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #646cff, #8f94ff);
+  height: 1px;
+  background-color: #646cff;
   transition: width 0.3s ease;
 }
 
 .register-link a:hover {
-  color: #8f94ff;
+  text-decoration: none;
 }
 
 .register-link a:hover::after {
@@ -285,15 +269,15 @@
 .forgot-password {
   display: flex;
   justify-content: flex-end;
-  margin-top: -0.5rem;
-  margin-bottom: 0.5rem;
+  margin-top: -0.8rem;
+  margin-bottom: 0.25rem;
 }
 
 .forgot-password a {
   color: #646cff;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: color 0.2s ease;
   position: relative;
 }
 
@@ -303,13 +287,14 @@
   bottom: -2px;
   left: 0;
   width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #646cff, #8f94ff);
+  height: 1px;
+  background-color: #646cff;
   transition: width 0.3s ease;
 }
 
 .forgot-password a:hover {
   color: #8f94ff;
+  text-decoration: none;
 }
 
 .forgot-password a:hover::after {
@@ -318,73 +303,73 @@
 
 /* OTP Section Styles */
 .otp-section {
+  margin: 15px auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 1.5rem;
 }
 
 .otp-inputs {
   display: flex;
-  gap: 10px;
-  margin: 1.5rem 0;
   justify-content: center;
+  gap: 8px;
+  margin: 20px 0;
+  width: 100%;
+  flex-wrap: wrap;
 }
 
 .otp-input {
-  width: 55px;
-  height: 55px;
+  width: 50px;
+  height: 50px;
   font-size: 1.3rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
   text-align: center;
-  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .otp-input:focus {
-  outline: none;
   border-color: #646cff;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.15);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.2);
 }
 
 .resend-otp {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 1rem;
+  text-align: center;
+  margin-top: 10px;
   font-size: 0.9rem;
+  color: #a0a0a0;
 }
 
 .resend-btn {
   background: none;
   border: none;
   color: #646cff;
-  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0.3rem 0.5rem;
-  margin-left: 0.5rem;
+  padding: 5px;
+  margin-left: 5px;
   position: relative;
-  transition: all 0.3s ease;
 }
 
 .resend-btn::after {
   content: "";
   position: absolute;
-  bottom: 0;
+  bottom: 2px;
   left: 0;
   width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #646cff, #8f94ff);
+  height: 1px;
+  background-color: #646cff;
   transition: width 0.3s ease;
 }
 
 .resend-btn:hover {
-  color: #8f94ff;
+  text-decoration: none;
 }
 
 .resend-btn:hover::after {
@@ -392,61 +377,61 @@
 }
 
 .resend-btn:disabled {
-  color: rgba(255, 255, 255, 0.3);
+  color: #6b6b6b;
   cursor: not-allowed;
+  text-decoration: none;
 }
 
 .resend-btn:disabled::after {
-  background: transparent;
+  width: 0;
 }
 
 @media (max-width: 768px) {
   .login-card {
-    padding: 2.5rem 2rem;
-    max-width: 90%;
+    padding: 2rem;
+    max-width: 100%;
   }
-
+  
   .lottie-container {
     height: 150px;
   }
-
+  
   .login-animation {
-    width: 180px;
+    width: 170px;
     height: 150px;
   }
-
+  
   .otp-input {
-    width: 50px;
-    height: 50px;
+    width: 45px;
+    height: 45px;
     font-size: 1.2rem;
   }
 }
 
 @media (max-width: 480px) {
   .login-card {
-    padding: 2rem 1.5rem;
-    border-radius: 16px;
+    padding: 1.5rem;
   }
-
+  
   .lottie-container {
-    height: 130px;
+    height: 120px;
   }
-
+  
   .login-animation {
-    width: 150px;
-    height: 130px;
+    width: 140px;
+    height: 120px;
   }
-
+  
   .otp-inputs {
-    gap: 8px;
+    gap: 6px;
   }
-
+  
   .otp-input {
-    width: 45px;
-    height: 45px;
+    width: 40px;
+    height: 40px;
     font-size: 1.1rem;
   }
-
+  
   .login-title {
     font-size: 1.8rem;
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import noDataAnimation from '/public/lottie/no data.json';
+import loadingAnimation from '/public/lottie/loading.json';
 import { 
   Container, 
   Grid, 
@@ -141,7 +142,11 @@ const Favorites = () => {
   if (loading) {
     return (
       <Container sx={{ pt: '160px', pb: 8, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <CircularProgress size={30} sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+        <Lottie 
+          animationData={loadingAnimation} 
+          loop={true}
+          style={{ width: '150px', height: '150px' }}
+        />
       </Container>
     );
   }

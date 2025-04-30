@@ -63,12 +63,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.log('User authenticated:', data.user);
-      // Ensure the user has paymentMethods property initialized
-      const userData = {
-        ...data.user,
-        paymentMethods: data.user.paymentMethods || []
-      };
-      setUser(userData);
+      setUser(data.user);
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
@@ -363,14 +358,10 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.uploadProfileImage(file);
       console.log('Profile image uploaded:', response.data);
       
-      if (!response.data.user || !response.data.user.profileImage) {
-        throw new Error('Invalid response from server');
-      }
-      
       // Update the user in state with the new image URL
       setUser(prevUser => ({
         ...prevUser,
-        profileImage: response.data.user.profileImage
+        profileImage: response.data.profileImage
       }));
       
       toast.success('Profile image updated successfully');

@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const connectDB = require('./config/database');
+const fs = require('fs');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -30,7 +31,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Static file serving
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, filePath) => {
+    // Set proper MIME type for .glb files
+    if (path.extname(filePath) === '.glb') {
+      res.setHeader('Content-Type', 'model/gltf-binary');
+    }
+  }
+}));
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -57,11 +65,32 @@ app.use('/api/admin', auth, adminRoutes);
 // Error handling
 app.use(errorHandler);
 
+// Add this function after the imports and before the app setup
+const ensureUploadDirectoriesExist = () => {
+  const dirs = [
+    path.join(__dirname, 'uploads'),
+    path.join(__dirname, 'uploads', 'models'),
+    path.join(__dirname, 'uploads', 'thumbnails')
+  ];
+  
+  dirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      console.log(`Creating directory: ${dir}`);
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+  
+  console.log('Upload directories verified');
+};
+
 // Start server
 const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+    
+    // Ensure upload directories exist
+    ensureUploadDirectoriesExist();
     
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

@@ -186,7 +186,7 @@ const Navbar = () => {
         <div className="header-links desktop-links">
           <NavButton to="/products">Products</NavButton>
           <NavButton to="/about">About</NavButton>
-          {/* <NavButton to="/contact">Contact</NavButton> */}
+          <NavButton to="/contact">Contact</NavButton>
           {user?.isAdmin && (
             <NavButton to="/admin">Admin</NavButton>
           )}

@@ -4,6 +4,9 @@ import { FiShoppingCart, FiHeart, FiMinus, FiPlus } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
+import Lottie from 'lottie-react';
+import productsAnimation from '/public/lottie/products.json';
+import loadingAnimation from '/public/lottie/loading.json';
 import {
   Container,
   Grid,
@@ -32,9 +35,9 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
 import { productsAPI } from '../services/api';
-import ProductModel3D from '../components/ProductModel3D';
 import '../styles/pages/Products.css';
 import { toast } from 'react-hot-toast';
+import ProductCard from '../components/ProductCard';
 
 // Register the ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -291,8 +294,11 @@ const Products = () => {
     return (
       <Container>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <CircularProgress />
-          <Typography sx={{ ml: 2 }}>Loading products...</Typography>
+          <Lottie 
+            animationData={loadingAnimation} 
+            loop={true}
+            style={{ width: '150px', height: '150px' }}
+          />
         </Box>
       </Container>
     );
@@ -319,43 +325,33 @@ const Products = () => {
 
   return (
     <Box className="products-page" sx={{ bgcolor: '#121212', minHeight: '100vh', color: 'white' }}>
-      <Container sx={{ py: 8, pt: '200px' }} maxWidth="lg">
+      <Container sx={{ py: 4, pt: '120px' }} maxWidth="lg">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.6 }}
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}
         >
-          <Typography 
-            ref={productsHeadingRef}
-            variant="h2" 
-            component="h1" 
-            align="center" 
-            sx={{ 
-              mb: 4, 
-              fontWeight: 600,
-              background: 'linear-gradient(45deg, #ffffff, #4a90e2)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              color: 'transparent',
-              letterSpacing: '-0.5px',
-              position: 'relative',
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                bottom: '-15px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '80px',
-                height: '3px',
-                background: 'linear-gradient(90deg, transparent, #4a90e2, transparent)',
-                borderRadius: '3px'
-              }
-            }}
-          >
-            Our Products
-          </Typography>
+          <Lottie 
+            animationData={productsAnimation} 
+            loop={true}
+            style={{ width: '550px', height: '550px' }}
+          />
         </motion.div>
+
+        <Typography 
+          ref={productsHeadingRef}
+          variant="h3" 
+          component="h1" 
+          align="center" 
+          sx={{ 
+            mb: 1, 
+            fontWeight: 'bold',
+            color: 'white'
+          }}
+        >
+          Our Products
+        </Typography>
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -363,21 +359,13 @@ const Products = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="filters-section">
-            <Typography 
-              variant="h6" 
-              align="center" 
-              sx={{ 
-                color: 'rgba(255,255,255,0.9)',
-                fontWeight: 500,
-                mb: 2
-              }}
-            >
-              Filters
+            <Typography variant="body2" align="center" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              Filters:
             </Typography>
             
             <div className="filters-container">
               <div>
-                <label className="filter-label">Sort By</label>
+                <label className="filter-label">Price</label>
                 <select 
                   className="filter-select"
                   value={sortBy}
@@ -391,7 +379,7 @@ const Products = () => {
               </div>
               
               <div>
-                <label className="filter-label">Category</label>
+                <label className="filter-label">Product</label>
                 <select 
                   className="filter-select"
                   value={category}
@@ -437,116 +425,12 @@ const Products = () => {
                 </Box>
               </Grid>
             ) : (
-              products.map((product, index) => (
+              products.map((product) => (
                 <Grid item key={product._id} xs={12} sm={6} md={4}>
-                  <motion.div
-                    custom={index}
-                    variants={cardVariants}
-                    whileHover="hover"
-                    className="product-card"
-                  >
-                    <Box 
-                      sx={{ 
-                        position: 'relative',
-                        backgroundColor: '#1A1A1A',
-                        overflow: 'hidden',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                        height: '100%',
-                        borderRadius: '15px',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      {/* Favorite button */}
-                      <button
-                        className={`favorite-button ${isFavorite(product._id) ? 'active' : ''}`}
-                        onClick={(e) => handleFavoriteToggle(e, product._id)}
-                        aria-label={isFavorite(product._id) ? "Remove from favorites" : "Add to favorites"}
-                      >
-                        <FiHeart size={16} />
-                      </button>
-                      
-                      {/* Product image - clickable to navigate to product detail */}
-                      <div 
-                        className="product-image"
-                        onClick={() => navigate(`/product/${product._id}`)}
-                      >
-                        {/* Use 3D model if available, otherwise use image */}
-                        {product.modelUrl && typeof product.modelUrl === 'string' && product.modelUrl.endsWith('.glb') ? (
-                          <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-                            <ProductModel3D 
-                              modelUrl={product.modelUrl.startsWith('/') || product.modelUrl.startsWith('http') 
-                                ? product.modelUrl 
-                                : `/${product.modelUrl}`} 
-                              height="100%" 
-                              onError={() => {
-                                console.log(`Failed to load model for ${product.name}, using image instead`);
-                              }}
-                            />
-                            <div 
-                              style={{
-                                position: 'absolute',
-                                bottom: '10px',
-                                right: '10px',
-                                zIndex: 2,
-                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                color: 'white',
-                                fontSize: '0.7rem',
-                                padding: '4px 8px',
-                                borderRadius: '12px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                backdropFilter: 'blur(4px)'
-                              }}
-                            >
-                              <span style={{ 
-                                display: 'inline-block', 
-                                width: '6px', 
-                                height: '6px', 
-                                borderRadius: '50%', 
-                                backgroundColor: '#4a90e2',
-                                boxShadow: '0 0 6px #4a90e2' 
-                              }}></span>
-                              3D
-                            </div>
-                          </div>
-                        ) : (
-                          <motion.img
-                            variants={imageVariants}
-                            src={`${import.meta.env.VITE_API_URL}${product.images[0]}`}
-                            alt={product.name}
-                            onError={(e) => {
-                              e.target.src = '/placeholder.jpg';
-                            }}
-                          />
-                        )}
-                      </div>
-                      
-                      {/* Product info */}
-                      <div className="product-info">
-                        <div className="product-category">{product.category}</div>
-                        <h3 className="product-name">{product.name}</h3>
-                        
-                        <div className="product-meta">
-                          <div className="product-price">${product.price}</div>
-                          <div className={`product-status ${product.inStock ? 'in-stock' : 'out-of-stock'}`}>
-                            {product.inStock ? 'In Stock' : 'Out of Stock'}
-                          </div>
-                        </div>
-                        
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="add-to-cart"
-                          onClick={() => handleAddToCart(product, quantities[product._id] || 1)}
-                          disabled={!product.inStock}
-                        >
-                          <span className="button-text">Add to Cart</span>
-                          <FiShoppingCart size={16} />
-                        </motion.button>
-                      </div>
-                    </Box>
-                  </motion.div>
+                  <ProductCard 
+                    product={product} 
+                    onAddToCart={(product, quantity) => handleAddToCart(product, quantity)}
+                  />
                 </Grid>
               ))
             )}
