@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import JustGirlScene from '../components/justagirl';
 import CursorRipple from '../components/CursorRipple';
 import AnimatedButton from '../components/AnimatedButton';
+import LoadingScreen from '../components/LoadingScreen';
+import ReviewsMarquee from '../components/ReviewsMarquee';
 import '../styles/pages/Home.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -13,8 +15,17 @@ gsap.registerPlugin(ScrollTrigger);
 const Home = () => {
   const textRef = useRef(null);
   const containerRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Handle loading screen completion
+  const handleLoadingFinished = () => {
+    setIsLoading(false);
+  };
 
   useEffect(() => {
+    // Only run animations after loading screen is done
+    if (isLoading) return;
+
     // Split text into characters
     const text = new SplitType(textRef.current, {
       types: 'chars',
@@ -80,10 +91,13 @@ const Home = () => {
       text.revert();
       ScrollTrigger.getAll().forEach(t => t.kill());
     };
-  }, []);
+  }, [isLoading]);
 
   return (
-    <div className="lusion-wrapper" ref={containerRef}>
+    <>
+      {isLoading && <LoadingScreen onFinished={handleLoadingFinished} />}
+      
+      <div className={`lusion-wrapper ${isLoading ? 'hidden' : ''}`} ref={containerRef}>
       <CursorRipple />
       
       <main style={{ paddingTop: 0 }}>
@@ -120,6 +134,9 @@ const Home = () => {
             ))}
           </div>
         </section>
+          
+          {/* Customer Reviews Marquee */}
+          <ReviewsMarquee />
 
         <section className="manifesto-section animate-section">
           <div className="vision-text">
@@ -185,6 +202,7 @@ const Home = () => {
         </section>
       </main>
     </div>
+    </>
   );
 };
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiShoppingCart, FiHeart, FiMinus, FiPlus } from 'react-icons/fi';
+import { FiShoppingCart, FiHeart, FiMinus, FiPlus, FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
 import Lottie from 'lottie-react';
-import productsAnimation from '/public/lottie/products.json';
 import loadingAnimation from '/public/lottie/loading.json';
+import { Globe } from '../components/magicui/globe';
 import {
   Container,
   Grid,
@@ -30,6 +30,7 @@ import {
   CircularProgress,
   ButtonGroup,
   Paper,
+  InputAdornment,
 } from '@mui/material';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
@@ -41,6 +42,34 @@ import ProductCard from '../components/ProductCard';
 
 // Register the ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
+
+// Animated text component
+const AnimatedText = ({ text, delay = 0 }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5, delay }}
+      style={{ overflow: 'hidden', display: 'inline-block' }}
+    >
+      {text.split('').map((char, index) => (
+        <motion.span
+          key={index}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.5, 
+            delay: delay + index * 0.03,
+            ease: [0.215, 0.61, 0.355, 1] 
+          }}
+          style={{ display: 'inline-block', whiteSpace: 'pre' }}
+        >
+          {char}
+        </motion.span>
+      ))}
+    </motion.div>
+  );
+};
 
 const Products = () => {
   const navigate = useNavigate();
@@ -57,6 +86,7 @@ const Products = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearch, setActiveSearch] = useState(''); // Store the active search term
   const [notification, setNotification] = useState({ open: false, message: '', type: 'success' });
 
   // Animation refs
@@ -126,9 +156,16 @@ const Products = () => {
     tap: { scale: 0.95 }
   };
 
+  // Initial data fetch with logging
   useEffect(() => {
+    console.log('useEffect triggered with:', {
+      page,
+      sortBy,
+      category,
+      activeSearch
+    });
     fetchProducts();
-  }, [page, sortBy, category, searchQuery]);
+  }, [page, sortBy, category, activeSearch]);
 
   // Effect for GSAP animations
   useEffect(() => {
@@ -157,6 +194,7 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
+      console.log('Fetching products with search:', activeSearch); // Debug log
       setLoading(true);
       setError(null);
       
@@ -168,7 +206,7 @@ const Products = () => {
         page,
         sort: sortBy,
         category: category !== 'all' ? category : undefined,
-        search: searchQuery || undefined,
+        search: activeSearch || undefined,
       });
       
       // Check if response exists
@@ -197,6 +235,7 @@ const Products = () => {
         fetchedProducts = [];
       }
 
+      console.log('Fetched products:', fetchedProducts.length); // Debug log
       setProducts(fetchedProducts);
       setTotalPages(total);
       if (currentPage !== page) {
@@ -285,12 +324,53 @@ const Products = () => {
     setPage(value);
   };
 
+  // Updated search handlers
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    console.log('Search submitted with query:', searchQuery); // Debug log
+    
+    // Ensure we have an actual search term
+    const trimmedQuery = searchQuery.trim();
+    
+    // Update activeSearch and trigger a new search
+    setActiveSearch(trimmedQuery);
+    
+    // Reset to page 1 when performing a new search
+    setPage(1);
+    
+    // Force a new fetch if the useEffect doesn't trigger it
+    setTimeout(() => {
+      fetchProducts();
+    }, 0);
+  };
+
+  const handleClearSearch = () => {
+    console.log('Clearing search'); // Debug log
+    setSearchQuery('');
+    setActiveSearch('');
+    setPage(1);
+    
+    // Force a new fetch
+    setTimeout(() => {
+      fetchProducts();
+    }, 0);
+  };
+
+  // Reset filters handler
+  const handleResetFilters = () => {
+    console.log('Resetting all filters'); // Debug log
+    setSortBy('newest');
+    setCategory('all');
+    setSearchQuery('');
+    setActiveSearch('');
     setPage(1);
   };
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
       <Container>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
@@ -304,7 +384,7 @@ const Products = () => {
     );
   }
 
-  if (error) {
+  if (error && products.length === 0) {
     return (
       <Container>
         <Box sx={{ py: 8 }}>
@@ -326,45 +406,110 @@ const Products = () => {
   return (
     <Box className="products-page" sx={{ bgcolor: '#121212', minHeight: '100vh', color: 'white' }}>
       <Container sx={{ py: 4, pt: '120px' }} maxWidth="lg">
+        {/* Globe and animated text header */}
+        <div className="products-header">
+          <div className="globe-container">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8 }}
+              style={{ width: '300px', height: '300px', margin: '0 auto' }}
+            >
+              <Globe />
+            </motion.div>
+          </div>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="products-title-container"
+          >
+            <h1 className="products-title">
+              <AnimatedText text="Our" delay={0.2} />
+              {" "}
+              <AnimatedText text="Premium" delay={0.3} />
+              {" "}
+              <AnimatedText text="Products" delay={0.4} />
+            </h1>
+            <p className="products-subtitle">
+              <AnimatedText text="Discover the finest men's grooming products crafted with care" delay={0.7} />
+            </p>
+          </motion.div>
+        </div>
+        
+        {/* Search bar - Form with submit handler */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}
+          transition={{ duration: 0.6, delay: 0.9 }}
+          className="search-container"
         >
-          <Lottie 
-            animationData={productsAnimation} 
-            loop={true}
-            style={{ width: '550px', height: '550px' }}
-          />
+          <form 
+            onSubmit={handleSearchSubmit} 
+            className="search-form"
+          >
+            <div className="search-input-container">
+              <FiSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search products and press Enter..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="search-input"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="search-clear-button"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <button 
+              type="submit" 
+              className="search-button"
+            >
+              Search
+            </button>
+          </form>
+          
+          {activeSearch && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="search-status"
+            >
+              {loading ? (
+                <div className="search-loading">
+                  <CircularProgress size={16} sx={{ color: 'white', marginRight: '8px' }} />
+                  <span>Searching...</span>
+                </div>
+              ) : (
+                <>
+                  <FiSearch className="search-status-icon" />
+                  <span>Showing results for "{activeSearch}"</span>
+                </>
+              )}
+            </motion.div>
+          )}
         </motion.div>
-
-        <Typography 
-          ref={productsHeadingRef}
-          variant="h3" 
-          component="h1" 
-          align="center" 
-          sx={{ 
-            mb: 1, 
-            fontWeight: 'bold',
-            color: 'white'
-          }}
-        >
-          Our Products
-        </Typography>
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.6, delay: 1.1 }}
         >
           <div className="filters-section">
-            <Typography variant="body2" align="center" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-              Filters:
-            </Typography>
+            <div className="filters-title">
+              <span>Refine Your Selection</span>
+            </div>
             
             <div className="filters-container">
-              <div>
+              <div className="filter-group">
                 <label className="filter-label">Price</label>
                 <select 
                   className="filter-select"
@@ -376,10 +521,11 @@ const Products = () => {
                   <option className="filter-option" value="price_high">Price: High to Low</option>
                   <option className="filter-option" value="popular">Most Popular</option>
                 </select>
+                {sortBy !== 'newest' && <span className="filter-active"></span>}
               </div>
               
-              <div>
-                <label className="filter-label">Product</label>
+              <div className="filter-group">
+                <label className="filter-label">Category</label>
                 <select 
                   className="filter-select"
                   value={category}
@@ -392,9 +538,12 @@ const Products = () => {
                   <option className="filter-option" value="Accessories">Accessories</option>
                   <option className="filter-option" value="Body Care">Body Care</option>
                 </select>
+                {category !== 'all' && (
+                  <span className="filter-badge">{category}</span>
+                )}
               </div>
               
-              <div>
+              <div className="filter-group">
                 <label className="filter-label">Relevance</label>
                 <select 
                   className="filter-select"
@@ -406,36 +555,70 @@ const Products = () => {
                 </select>
               </div>
             </div>
+            
+            {(sortBy !== 'newest' || category !== 'all' || activeSearch) && (
+              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                <button 
+                  className="filter-reset"
+                  onClick={handleResetFilters}
+                >
+                  Reset Filters
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
 
+        {/* Products Grid with optimized loading state */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.1 }}
+          animate={loading ? "hidden" : "visible"}
+          className="products-grid-container"
         >
           <Grid container spacing={3}>
             {products.length === 0 ? (
               <Grid item xs={12}>
                 <Box sx={{ py: 4, textAlign: 'center' }}>
                   <Typography variant="h6" color="text.secondary">
-                    No products found
+                    {loading ? "" : "No products found"}
                   </Typography>
                 </Box>
               </Grid>
             ) : (
-              products.map((product) => (
+              products.map((product, index) => (
                 <Grid item key={product._id} xs={12} sm={6} md={4}>
-                  <ProductCard 
-                    product={product} 
-                    onAddToCart={(product, quantity) => handleAddToCart(product, quantity)}
-                  />
+                  <motion.div
+                    variants={cardVariants}
+                    whileHover="hover"
+                    custom={index}
+                    style={{ height: '100%' }}
+                  >
+                    <ProductCard 
+                      product={product} 
+                      onAddToCart={(product, quantity) => handleAddToCart(product, quantity)}
+                    />
+                  </motion.div>
                 </Grid>
               ))
             )}
           </Grid>
         </motion.div>
+
+        {/* Loading indicator specifically for product updates */}
+        {loading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="products-loading"
+          >
+            <CircularProgress size={40} sx={{ color: 'rgba(74, 144, 226, 0.8)' }} />
+            <Typography variant="body2" sx={{ mt: 2, color: 'rgba(255,255,255,0.7)' }}>
+              Updating products...
+            </Typography>
+          </motion.div>
+        )}
 
         {totalPages > 1 && (
           <motion.div
