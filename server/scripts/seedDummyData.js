@@ -3,7 +3,6 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const config = require('../config');
-const bcrypt = require('bcryptjs');
 
 // Connect to MongoDB
 mongoose.connect(config.MONGODB_URI, {
@@ -14,11 +13,11 @@ mongoose.connect(config.MONGODB_URI, {
 mongoose.connection.on('connected', async () => {
   console.log('MongoDB connected successfully to:', config.MONGODB_URI);
   try {
-    await seedData();
-    console.log('Seed data completed successfully');
+    await seedOrders();
+    console.log('Order seed completed successfully');
     mongoose.connection.close();
   } catch (error) {
-    console.error('Error seeding data:', error);
+    console.error('Error seeding orders:', error);
     mongoose.connection.close();
   }
 });
@@ -48,256 +47,7 @@ const generateRandomDates = (count, startDaysAgo = 90) => {
   return dates.sort((a, b) => a - b);
 };
 
-const products = [
-  {
-    name: "AURA Beard Oil",
-    description: "Premium beard oil that nourishes and conditions your beard for a healthy, shiny look.",
-    price: 1999,
-    images: ["https://i.imgur.com/8tTF31R.png"],
-    category: "Beard Care",
-    subCategory: "Oils",
-    sizes: [
-      {
-        name: "30ml",
-        price: 1999,
-        inStock: true,
-        quantity: 75,
-        sku: "BO-30ML-001"
-      },
-      {
-        name: "60ml",
-        price: 2999,
-        inStock: true,
-        quantity: 50,
-        sku: "BO-60ML-001"
-      }
-    ],
-    ingredients: ["Argan Oil", "Jojoba Oil", "Vitamin E", "Essential Oils"],
-    features: ["Moisturizes beard", "Prevents beard dandruff", "Promotes beard growth"],
-    stockQuantity: 125,
-    inStock: true,
-    discount: 0,
-    tags: ["beard oil", "grooming", "men's care"],
-    brand: "AURA",
-    weight: {
-      value: 30,
-      unit: "ml"
-    },
-    dimensions: {
-      length: 4,
-      width: 4,
-      height: 10,
-      unit: "cm"
-    },
-    modelUrl: "https://i.imgur.com/8tTF31R.png",
-    thumbnailUrl: "https://i.imgur.com/8tTF31R.png"
-  },
-  {
-    name: "AURA Beard Balm",
-    description: "Styling balm that provides hold while conditioning your beard.",
-    price: 2499,
-    images: ["https://i.imgur.com/7ZCc9ZI.png"],
-    category: "Beard Care",
-    subCategory: "Balms",
-    sizes: [
-      {
-        name: "50g",
-        price: 2499,
-        inStock: true,
-        quantity: 60,
-        sku: "BB-50G-001"
-      }
-    ],
-    ingredients: ["Shea Butter", "Beeswax", "Coconut Oil", "Essential Oils"],
-    features: ["Medium hold", "Natural finish", "Conditions beard"],
-    stockQuantity: 60,
-    inStock: true,
-    discount: 10,
-    tags: ["beard balm", "styling", "men's care"],
-    brand: "AURA",
-    weight: {
-      value: 50,
-      unit: "g"
-    },
-    dimensions: {
-      length: 6,
-      width: 6,
-      height: 3,
-      unit: "cm"
-    },
-    modelUrl: "https://i.imgur.com/7ZCc9ZI.png",
-    thumbnailUrl: "https://i.imgur.com/7ZCc9ZI.png"
-  },
-  {
-    name: "AURA Face Cleanser",
-    description: "Gentle face wash that removes impurities without stripping skin of natural oils.",
-    price: 1799,
-    images: ["https://i.imgur.com/5X29kHA.png"],
-    category: "Skincare",
-    subCategory: "Cleansers",
-    sizes: [
-      {
-        name: "100ml",
-        price: 1799,
-        inStock: true,
-        quantity: 45,
-        sku: "FC-100ML-001"
-      },
-      {
-        name: "200ml",
-        price: 2899,
-        inStock: true,
-        quantity: 30,
-        sku: "FC-200ML-001"
-      }
-    ],
-    ingredients: ["Aloe Vera", "Glycerin", "Chamomile Extract", "Cucumber Extract"],
-    features: ["pH balanced", "Suitable for all skin types", "Hydrating"],
-    stockQuantity: 75,
-    inStock: true,
-    discount: 0,
-    tags: ["face wash", "cleanser", "skincare"],
-    brand: "AURA",
-    weight: {
-      value: 100,
-      unit: "ml"
-    },
-    dimensions: {
-      length: 5,
-      width: 5,
-      height: 12,
-      unit: "cm"
-    },
-    modelUrl: "https://i.imgur.com/5X29kHA.png",
-    thumbnailUrl: "https://i.imgur.com/5X29kHA.png"
-  },
-  {
-    name: "AURA Hair Pomade",
-    description: "Strong hold pomade for a classic, sleek hairstyle.",
-    price: 1899,
-    images: ["https://i.imgur.com/XYl3ZTL.png"],
-    category: "Hair Care",
-    subCategory: "Styling",
-    sizes: [
-      {
-        name: "100g",
-        price: 1899,
-        inStock: true,
-        quantity: 8,
-        sku: "HP-100G-001"
-      }
-    ],
-    ingredients: ["Beeswax", "Lanolin", "Castor Oil", "Essential Oils"],
-    features: ["Strong hold", "High shine", "Water-based"],
-    stockQuantity: 8,
-    inStock: true,
-    discount: 0,
-    tags: ["pomade", "hair styling", "grooming"],
-    brand: "AURA",
-    weight: {
-      value: 100,
-      unit: "g"
-    },
-    dimensions: {
-      length: 8,
-      width: 8,
-      height: 4,
-      unit: "cm"
-    },
-    modelUrl: "https://i.imgur.com/XYl3ZTL.png",
-    thumbnailUrl: "https://i.imgur.com/XYl3ZTL.png"
-  },
-  {
-    name: "AURA Body Wash",
-    description: "Refreshing body wash with natural ingredients for a clean, hydrated feel.",
-    price: 1599,
-    images: ["https://i.imgur.com/pFq8vlJ.png"],
-    category: "Body Care",
-    subCategory: "Cleansers",
-    sizes: [
-      {
-        name: "250ml",
-        price: 1599,
-        inStock: true,
-        quantity: 100,
-        sku: "BW-250ML-001"
-      },
-      {
-        name: "500ml",
-        price: 2699,
-        inStock: true,
-        quantity: 65,
-        sku: "BW-500ML-001"
-      }
-    ],
-    ingredients: ["Aloe Vera", "Coconut Oil", "Vitamin E", "Essential Oils"],
-    features: ["Moisturizing", "Suitable for all skin types", "Refreshing scent"],
-    stockQuantity: 165,
-    inStock: true,
-    discount: 15,
-    tags: ["body wash", "shower gel", "body care"],
-    brand: "AURA",
-    weight: {
-      value: 250,
-      unit: "ml"
-    },
-    dimensions: {
-      length: 6,
-      width: 6,
-      height: 15,
-      unit: "cm"
-    },
-    modelUrl: "https://i.imgur.com/pFq8vlJ.png",
-    thumbnailUrl: "https://i.imgur.com/pFq8vlJ.png"
-  }
-];
-
-const users = [
-  {
-    name: "John Smith",
-    email: "john@example.com",
-    password: "password123",
-    role: "user",
-    status: "active",
-    shippingAddress: {
-      street: "123 Main St",
-      city: "New York",
-      state: "NY",
-      zipCode: "10001",
-      country: "USA"
-    }
-  },
-  {
-    name: "Emily Johnson",
-    email: "emily@example.com",
-    password: "password123",
-    role: "user",
-    status: "active",
-    shippingAddress: {
-      street: "456 Oak Ave",
-      city: "Los Angeles",
-      state: "CA",
-      zipCode: "90001",
-      country: "USA"
-    }
-  },
-  {
-    name: "Michael Brown",
-    email: "michael@example.com",
-    password: "password123",
-    role: "user",
-    status: "active",
-    shippingAddress: {
-      street: "789 Pine St",
-      city: "Chicago",
-      state: "IL",
-      zipCode: "60007",
-      country: "USA"
-    }
-  }
-];
-
-// Add default shipping address for orders
+// Default shipping address for orders
 const defaultShippingAddress = {
   street: "123 Main St",
   city: "New York",
@@ -306,50 +56,35 @@ const defaultShippingAddress = {
   country: "USA"
 };
 
-const seedData = async () => {
+const seedOrders = async () => {
   try {
-    // Clear existing data
-    await Product.deleteMany({});
+    // Clear existing orders only
     await Order.deleteMany({});
     
-    // Don't clear users to preserve admin account
-    // await User.deleteMany({ role: 'user' });  // Only delete non-admin users
-
-    // Insert products
-    const savedProducts = await Product.insertMany(products);
-    console.log(`Inserted ${savedProducts.length} products`);
-
-    // Insert users (if don't exist)
-    const createdUsers = [];
-    for (const user of users) {
-      const existingUser = await User.findOne({ email: user.email });
-      if (!existingUser) {
-        // Hash password before saving
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        
-        const newUser = new User({
-          ...user,
-          password: hashedPassword
-        });
-        
-        const savedUser = await newUser.save();
-        createdUsers.push(savedUser);
-      }
+    // Find products and users
+    const products = await Product.find({});
+    if (products.length === 0) {
+      console.log("No products found in the database. Please ensure products exist first.");
+      return false;
     }
-    console.log(`Created ${createdUsers.length} users`);
-
-    // Get all users (including admin)
-    const allUsers = await User.find({});
     
-    // Generate random dates for the past 90 days
-    const orderDates = generateRandomDates(50);
+    const users = await User.find({});
+    if (users.length === 0) {
+      console.log("No users found in the database. Please ensure users exist first.");
+      return false;
+    }
     
-    // Create orders
+    console.log(`Found ${products.length} products and ${users.length} users`);
+    
+    // Generate random dates for the past 90 days - 10 orders now instead of 50
+    const orderDates = generateRandomDates(10);
+    
+    // Create exactly 10 orders
     const orders = [];
-    for (let i = 0; i < 50; i++) {
+    
+    for (let i = 0; i < 10; i++) {
       // Randomly select a user
-      const user = allUsers[Math.floor(Math.random() * allUsers.length)];
+      const user = users[Math.floor(Math.random() * users.length)];
       
       // Randomly select 1-3 products
       const numProducts = Math.floor(Math.random() * 3) + 1;
@@ -357,7 +92,7 @@ const seedData = async () => {
       let subtotal = 0;
       
       for (let j = 0; j < numProducts; j++) {
-        const product = savedProducts[Math.floor(Math.random() * savedProducts.length)];
+        const product = products[Math.floor(Math.random() * products.length)];
         const quantity = Math.floor(Math.random() * 3) + 1;
         const size = product.sizes[Math.floor(Math.random() * product.sizes.length)];
         const itemPrice = size.price;
@@ -379,23 +114,7 @@ const seedData = async () => {
       const shippingCost = 499; // $4.99 shipping
       const total = subtotal + tax + shippingCost;
       
-      // Determine order status
-      const statusOptions = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-      const statusWeights = [0.1, 0.2, 0.2, 0.4, 0.1];  // 40% delivered, 10% cancelled, etc.
-      
-      let status;
-      const rand = Math.random();
-      let cumulativeWeight = 0;
-      
-      for (let k = 0; k < statusOptions.length; k++) {
-        cumulativeWeight += statusWeights[k];
-        if (rand <= cumulativeWeight) {
-          status = statusOptions[k];
-          break;
-        }
-      }
-      
-      // Create the order
+      // Create order with DELIVERED status and PAID payment
       const order = new Order({
         user: user._id,
         items: orderItems,
@@ -403,15 +122,16 @@ const seedData = async () => {
         tax: tax,
         shippingCost: shippingCost,
         total: total,
-        status: status,
+        status: 'DELIVERED', // All orders are DELIVERED
         paymentInfo: {
           method: ['CARD', 'UPI', 'COD'][Math.floor(Math.random() * 3)],
-          status: ['PENDING', 'PAID', 'FAILED'][Math.floor(Math.random() * 2)], // Mostly PAID or PENDING
+          status: 'PAID', // All payments set to PAID
           transactionId: Math.random().toString(36).substring(2, 15)
         },
-        shippingAddress: defaultShippingAddress,
+        shippingAddress: user.shippingAddress || defaultShippingAddress,
         trackingNumber: Math.random().toString(36).substring(2, 10).toUpperCase(),
-        estimatedDelivery: new Date(orderDates[i].getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days after order date
+        estimatedDelivery: new Date(orderDates[i].getTime() - 3 * 24 * 60 * 60 * 1000), // Delivery date is 3 days before now (already delivered)
+        deliveredAt: new Date(orderDates[i].getTime() + 2 * 24 * 60 * 60 * 1000), // Set delivery date 2 days after order date
         createdAt: orderDates[i],
         updatedAt: orderDates[i]
       });
@@ -419,18 +139,18 @@ const seedData = async () => {
       orders.push(order);
     }
     
-    await Order.insertMany(orders);
-    console.log(`Created ${orders.length} orders`);
+    // Save all orders
+    const savedOrders = await Order.insertMany(orders);
+    console.log(`Created ${savedOrders.length} orders with DELIVERED status and PAID payment`);
     
     return true;
   } catch (error) {
-    console.error('Error seeding data:', error);
+    console.error('Error seeding orders:', error);
     throw error;
   }
 };
 
-// Don't run the script directly if it's imported elsewhere
+// Run the script if executed directly
 if (require.main === module) {
-  // The script is being run directly
-  console.log('Starting data seed...');
+  console.log('Starting order seed...');
 } 

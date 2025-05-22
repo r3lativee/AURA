@@ -8,7 +8,7 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { toast } from 'react-hot-toast';
 
-const ModelViewer = ({ modelUrl, alt, isVisible }) => {
+export const ModelViewer = ({ modelUrl, alt, isVisible }) => {
   const [modelLoaded, setModelLoaded] = useState(false);
   const [showError, setShowError] = useState(false);
   const [formatError, setFormatError] = useState(false);

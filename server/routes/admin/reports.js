@@ -32,13 +32,16 @@ router.get('/revenue', isAdmin, async (req, res) => {
         limit = 12; // Last 12 months
     }
     
-    // Get revenue data
+    // Get revenue data - ensure we only count paid orders
     const revenueData = await Order.aggregate([
-      { $match: { status: { $nin: ['cancelled', 'refunded'] } } },
+      { $match: { 
+        status: { $nin: ['cancelled', 'refunded'] },
+        isPaid: true 
+      }},
       { $group: { 
         _id: groupBy, 
         date: { $first: dateFormat },
-        revenue: { $sum: '$total' },
+        revenue: { $sum: '$totalAmount' }, // Use totalAmount field
         count: { $sum: 1 }
       }},
       { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1, '_id.week': -1 } },
@@ -55,10 +58,11 @@ router.get('/revenue', isAdmin, async (req, res) => {
     
     // Get sales by category
     const salesData = await Order.aggregate([
+      { $match: { isPaid: true } }, // Only include paid orders
       { $unwind: '$items' },
       { $lookup: {
         from: 'products',
-        localField: 'items.product',
+        localField: 'items.productId', // Connect by productId not product
         foreignField: '_id',
         as: 'productInfo'
       }},
@@ -75,6 +79,12 @@ router.get('/revenue', isAdmin, async (req, res) => {
         revenue: 1
       }}
     ]);
+    
+    console.log('Revenue report generated:', { 
+      period, 
+      revenueCount: revenueData.length,
+      salesDataCount: salesData.length
+    });
     
     res.json({ 
       revenueData,
@@ -96,13 +106,13 @@ router.get('/sales', isAdmin, async (req, res) => {
       { $unwind: '$items' },
       { $lookup: {
         from: 'products',
-        localField: 'items.product',
+        localField: 'items.productId',
         foreignField: '_id',
         as: 'productInfo'
       }},
       { $unwind: '$productInfo' },
       { $group: { 
-        _id: '$items.product', 
+        _id: '$items.productId', 
         name: { $first: '$productInfo.name' },
         category: { $first: '$productInfo.category' },
         sales: { $sum: '$items.quantity' },

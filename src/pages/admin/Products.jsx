@@ -68,6 +68,7 @@ import { toast } from 'react-hot-toast';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import axios from 'axios';
+import * as THREE from 'three';
 
 // Default model URL to use as fallback when model loading fails
 const DEFAULT_MODEL_URL = '/models/ftm.glb';

@@ -4,10 +4,11 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import SplitType from 'split-type';
 import { motion } from 'framer-motion';
 import JustGirlScene from '../components/justagirl';
-import CursorRipple from '../components/CursorRipple';
 import AnimatedButton from '../components/AnimatedButton';
 import LoadingScreen from '../components/LoadingScreen';
 import ReviewsMarquee from '../components/ReviewsMarquee';
+import HomeProductCard from '../components/HomeProductCard';
+import { productsAPI } from '../services/api';
 import '../styles/pages/Home.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -16,11 +17,37 @@ const Home = () => {
   const textRef = useRef(null);
   const containerRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
 
   // Handle loading screen completion
   const handleLoadingFinished = () => {
     setIsLoading(false);
   };
+
+  // Fetch featured products
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        setFeaturedLoading(true);
+        const response = await productsAPI.getAll({ 
+          page: 1, 
+          limit: 6, 
+          sortBy: 'newest' 
+        });
+        const products = response.data.products || [];
+        setFeaturedProducts(products);
+      } catch (error) {
+        console.error('Error fetching featured products:', error);
+      } finally {
+        setFeaturedLoading(false);
+      }
+    };
+
+    if (!isLoading) {
+      fetchFeaturedProducts();
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     // Only run animations after loading screen is done
@@ -98,7 +125,6 @@ const Home = () => {
       {isLoading && <LoadingScreen onFinished={handleLoadingFinished} />}
       
       <div className={`lusion-wrapper ${isLoading ? 'hidden' : ''}`} ref={containerRef}>
-      <CursorRipple />
       
       <main style={{ paddingTop: 0 }}>
         <section className="hero-section">
@@ -118,20 +144,25 @@ const Home = () => {
             <span className="year">2024</span>
           </div>
           <div className="work-grid">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <motion.div 
-                key={item} 
-                className="work-item"
-                whileHover={{ y: -10 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <div className="work-image" style={{ backgroundImage: `url('/images/project${item}.jpg')` }}></div>
-                <div className="work-info">
-                  <h3>Product {item}</h3>
-                  <p>Digital Experience</p>
+            {featuredLoading ? (
+              // Loading state
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>Loading featured products...</p>
+              </div>
+            ) : featuredProducts.length > 0 ? (
+              // Display products
+              featuredProducts.map((product) => (
+                <div key={product._id} className="work-item">
+                  <HomeProductCard product={product} />
                 </div>
-              </motion.div>
-            ))}
+              ))
+            ) : (
+              // Fallback if no products
+              <div className="no-products">
+                <p>No featured products available at the moment.</p>
+              </div>
+            )}
           </div>
         </section>
           

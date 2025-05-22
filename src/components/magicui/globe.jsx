@@ -67,17 +67,24 @@ export const Globe = ({ className = '' }) => {
       dark: 1,
       diffuse: 1.2,
       mapSamples: 16000,
-      mapBrightness: 2.0,
+      mapBrightness: 7.0,
       baseColor: [0.1, 0.1, 0.1],
       markerColor: [0.4, 0.7, 1],
       glowColor: [0.3, 0.5, 1],
       markers: [
         // Add your markers here
-        { location: [37.7595, -122.4367], size: 0.05 }, // San Francisco
-        { location: [40.7128, -74.006], size: 0.05 }, // New York
-        { location: [51.5074, -0.1278], size: 0.05 }, // London
-        { location: [35.6762, 139.6503], size: 0.05 }, // Tokyo
-        { location: [22.3193, 114.1694], size: 0.05 }, // Hong Kong
+        { location: [26.2006, 92.9376], size: 0.07 }, // Assam (Dispur)
+        { location: [28.6139, 77.2090], size: 0.06 }, // Delhi
+        { location: [19.0760, 72.8777], size: 0.06 }, // Maharashtra (Mumbai)
+        { location: [13.0827, 80.2707], size: 0.06 }, // Tamil Nadu (Chennai)
+        { location: [12.9716, 77.5946], size: 0.06 }, // Karnataka (Bengaluru)
+        { location: [22.5726, 88.3639], size: 0.06 }, // West Bengal (Kolkata)
+        { location: [23.0225, 72.5714], size: 0.06 }, // Gujarat (Ahmedabad)
+        { location: [17.3850, 78.4867], size: 0.06 }, // Telangana (Hyderabad)
+        { location: [26.9124, 75.7873], size: 0.06 }, // Rajasthan (Jaipur)
+        { location: [23.2599, 77.4126], size: 0.06 }, // Madhya Pradesh (Bhopal)
+        { location: [20.2961, 85.8245], size: 0.06 }, // Odisha (Bhubaneswar)
+        { location: [15.2993, 74.1240], size: 0.05 }, // Goa (Panaji)
       ],
       onRender: (state) => {
         // Auto-rotate the globe when not interacting
@@ -86,7 +93,7 @@ export const Globe = ({ className = '' }) => {
           state.phi = phi;
         } else {
           // Auto-rotate
-          phi += 0.003;
+          phi += 0.002;
           state.phi = phi;
         }
         state.width = width * 2;

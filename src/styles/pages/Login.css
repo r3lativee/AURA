@@ -100,7 +100,8 @@
   flex-direction: column;
   gap: 1.5rem;
   max-width: 400px;
-  margin: 0 auto;
+  margin:  auto;
+  margin-top: 2rem;
   position: relative;
   z-index: 1;
 }

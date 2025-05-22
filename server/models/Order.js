@@ -72,6 +72,11 @@ const orderSchema = new mongoose.Schema({
     enum: ['Credit Card', 'Debit Card', 'Razorpay', 'PayPal', 'Cash on Delivery'],
     required: true
   },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'failed', 'refunded'],
+    default: 'pending'
+  },
   paymentDetails: {
     cardName: {
       type: String

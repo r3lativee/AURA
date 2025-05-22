@@ -78,7 +78,7 @@ router.get('/', isAdmin, async (req, res) => {
 router.get('/stats', isAdmin, async (req, res) => {
   try {
     // Get total orders
-    const totalOrders = await Order.countDocuments();
+    const totalOrders = await Order.countDocuments({ isPaid: true });
     
     // Get orders by status
     const ordersByStatus = await Order.aggregate([
@@ -87,11 +87,14 @@ router.get('/stats', isAdmin, async (req, res) => {
     
     // Calculate total revenue
     const revenueResult = await Order.aggregate([
-      { $match: { status: { $nin: ['cancelled'] } } },
-      { $group: { _id: null, totalRevenue: { $sum: '$total' } } }
+      { $match: { isPaid: true } },
+      { $group: { _id: null, totalRevenue: { $sum: '$totalAmount' } } }
     ]);
     
     const totalRevenue = revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;
+    
+    // Calculate profit (30% of revenue)
+    const profit = totalRevenue * 0.3;
     
     // Get recent orders
     const recentOrders = await Order.find()
@@ -108,14 +111,14 @@ router.get('/stats', isAdmin, async (req, res) => {
       { 
         $match: { 
           createdAt: { $gte: thirtyDaysAgo },
-          status: { $nin: ['cancelled'] }
+          isPaid: true
         } 
       },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           count: { $sum: 1 },
-          revenue: { $sum: '$total' }
+          revenue: { $sum: '$totalAmount' }
         }
       },
       { $sort: { _id: 1 } }
@@ -125,6 +128,7 @@ router.get('/stats', isAdmin, async (req, res) => {
       totalOrders,
       ordersByStatus,
       totalRevenue,
+      profit,
       recentOrders,
       ordersByDate
     });
@@ -139,7 +143,7 @@ router.get('/:id', isAdmin, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('user', 'name email')
-      .populate('items.product');
+      .populate('items.productId', 'name price images');
     
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
@@ -155,21 +159,48 @@ router.get('/:id', isAdmin, async (req, res) => {
 // PATCH /api/admin/orders/:id/status - Update order status
 router.patch('/:id/status', isAdmin, async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, paymentStatus } = req.body;
     
-    if (!status) {
-      return res.status(400).json({ message: 'Status is required' });
+    // Build update object
+    const updateData = {};
+    
+    // Add status if provided
+    if (status) {
+      // Validate status
+      const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid order status' });
+      }
+      updateData.status = status;
     }
     
-    // Validate status
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
+    // Add paymentStatus if provided
+    if (paymentStatus) {
+      // Validate payment status
+      const validPaymentStatuses = ['pending', 'paid', 'failed', 'refunded'];
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({ message: 'Invalid payment status' });
+      }
+      updateData.paymentStatus = paymentStatus;
+      
+      // If payment status is "paid", also update isPaid field
+      if (paymentStatus === 'paid' && !updateData.isPaid) {
+        updateData.isPaid = true;
+        updateData.paidAt = Date.now();
+      }
+    }
+    
+    // Add updateAt timestamp
+    updateData.updatedAt = Date.now();
+    
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'No valid update fields provided' });
     }
     
     const order = await Order.findByIdAndUpdate(
       req.params.id,
-      { status, updatedAt: Date.now() },
+      updateData,
       { new: true }
     ).populate('user', 'name email');
     
@@ -220,14 +251,14 @@ router.get('/reports/revenue', isAdmin, async (req, res) => {
       { 
         $match: { 
           createdAt: { $gte: startDate },
-          status: { $nin: ['cancelled'] }
+          isPaid: true // Only include paid orders
         } 
       },
       {
         $group: {
           _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
-          revenue: { $sum: '$total' },
-          profit: { $sum: { $multiply: ['$total', 0.3] } }, // Estimated profit
+          revenue: { $sum: '$totalAmount' }, // Use totalAmount field
+          profit: { $sum: { $multiply: ['$totalAmount', 0.3] } }, // Estimated profit
           orders: { $sum: 1 }
         }
       },
@@ -254,7 +285,7 @@ router.get('/reports/revenue', isAdmin, async (req, res) => {
       { 
         $lookup: {
           from: 'products',
-          localField: 'items.product',
+          localField: 'items.productId',
           foreignField: '_id',
           as: 'productData'
         }
