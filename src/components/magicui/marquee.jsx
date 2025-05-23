@@ -5,11 +5,11 @@ export const Marquee = ({
   children,
   className = '',
   reverse = false,
-  pauseOnHover = false,
+  pauseOnHover = true,
   vertical = false,
   repeat = 4,
-  is3D = false,
-  speed = 40, // Slower default speed (higher number = slower)
+  is3D = true,
+  speed = 60, // Slower default speed (higher number = slower)
 }) => {
   const containerRef = useRef(null);
   const scrollerRef = useRef(null);

@@ -374,7 +374,7 @@
   justify-content: center;
   margin: 15px 0;
   width: 100%;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .otp-input {

@@ -361,7 +361,7 @@ export const AuthProvider = ({ children }) => {
       // Update the user in state with the new image URL
       setUser(prevUser => ({
         ...prevUser,
-        profileImage: response.data.profileImage
+        profileImage: response.data.user?.profileImage || response.data.profileImage
       }));
       
       toast.success('Profile image updated successfully');
@@ -385,7 +385,7 @@ export const AuthProvider = ({ children }) => {
       // Update the user in state with the default image
       setUser(prevUser => ({
         ...prevUser,
-        profileImage: response.data.defaultImage || null
+        profileImage: response.data.user?.profileImage || response.data.defaultImage || null
       }));
       
       toast.success('Profile image removed');
@@ -400,27 +400,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  const contextValue = {
     user,
     loading,
+    isAuthenticated: !!user,
+    pendingRegistration,
     login,
     register,
     registerRequest,
     verifyAndRegister,
-    pendingRegistration,
     logout,
     updateProfile,
     getRandomAvatar,
     ensureUserHasAvatar,
     checkAuth,
-    isAuthenticated: !!user,
     isAdmin: user?.isAdmin || false,
     uploadProfileImage,
     deleteProfileImage
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {!loading && children}
     </AuthContext.Provider>
   );

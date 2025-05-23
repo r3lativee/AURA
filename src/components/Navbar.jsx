@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedButton from './AnimatedButton';
+import { getImageUrl } from '../utils/imageUtils';
 import './Navbar.css';
 
 const CartPreview = ({ isAuthenticated }) => {
@@ -186,7 +187,7 @@ const Navbar = () => {
         <div className="header-links desktop-links">
           <NavButton to="/products">Products</NavButton>
           <NavButton to="/about">About</NavButton>
-          <NavButton to="/contact">Contact</NavButton>
+          {/* <NavButton to="/contact">Contact</NavButton> */}
           {user?.isAdmin && (
             <NavButton to="/admin">Admin</NavButton>
           )}
@@ -270,12 +271,12 @@ const Navbar = () => {
             >
               {user?.profileImage ? (
                 <img 
-                  src={user.profileImage || 'https://i.imgur.com/3tVgsra.png'} 
+                  src={getImageUrl(user.profileImage)} 
                   className="profile-avatar" 
                   alt={user?.name || 'User'}
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://i.imgur.com/3tVgsra.png';
+                    e.target.src = getImageUrl('https://i.imgur.com/3tVgsra.png');
                   }}
                 />
               ) : (
@@ -300,11 +301,11 @@ const Navbar = () => {
                       <div className="profile-image">
                         {user?.profileImage ? (
                           <img 
-                            src={user.profileImage || 'https://i.imgur.com/3tVgsra.png'} 
+                            src={getImageUrl(user.profileImage)} 
                             alt={user?.name || 'User'} 
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = 'https://i.imgur.com/3tVgsra.png';
+                              e.target.src = getImageUrl('https://i.imgur.com/3tVgsra.png');
                             }}
                           />
                         ) : (

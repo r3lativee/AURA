@@ -70,7 +70,8 @@ const ensureUploadDirectoriesExist = () => {
   const dirs = [
     path.join(__dirname, 'uploads'),
     path.join(__dirname, 'uploads', 'models'),
-    path.join(__dirname, 'uploads', 'thumbnails')
+    path.join(__dirname, 'uploads', 'thumbnails'),
+    path.join(__dirname, 'uploads', 'profiles')
   ];
   
   dirs.forEach(dir => {

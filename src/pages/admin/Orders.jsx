@@ -157,9 +157,12 @@ const Orders = () => {
 
   const handleOpenDialog = (order) => {
     setSelectedOrder(order);
+    // Determine payment status: if isPaid is true, it should be 'paid'
+    const paymentStatus = order.isPaid ? 'paid' : (order.paymentStatus || 'pending');
+    
     setOrderForm({
       status: order.status || 'pending',
-      paymentStatus: order.paymentStatus || 'pending',
+      paymentStatus: paymentStatus,
     });
     setOpenDialog(true);
   };
@@ -530,9 +533,9 @@ const Orders = () => {
                         </StyledTableCell>
                         <StyledTableCell>
                           <StyledChip
-                            label={order.paymentStatus || 'Pending'}
-                            color={getStatusColor(order.paymentStatus)}
-                          size="small"
+                            label={order.isPaid ? 'Paid' : (order.paymentStatus || 'Pending')}
+                            color={order.isPaid ? 'success' : getStatusColor(order.paymentStatus)}
+                            size="small"
                             variant="outlined"
                         />
                         </StyledTableCell>

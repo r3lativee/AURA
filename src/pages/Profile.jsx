@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Paper,
@@ -19,6 +19,10 @@ import {
   DialogActions,
   Switch,
   FormControlLabel,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -26,16 +30,23 @@ import InputWithFocusLock from '../components/InputWithFocusLock';
 import { motion } from 'framer-motion';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { authAPI } from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Profile = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, uploadProfileImage, deleteProfileImage } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
+  const fileInputRef = useRef(null);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -55,6 +66,33 @@ const Profile = () => {
     cvv: '',
     isDefault: false
   });
+
+  // Refresh user data from server to ensure we have the latest phone number
+  const refreshUserData = async () => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      if (response.data?.success && response.data?.user) {
+        const userData = response.data.user;
+        console.log('Refreshed user data from server:', userData);
+        
+        const defaultAddress = userData.addresses?.find(addr => addr.isDefault) || userData.addresses?.[0];
+        
+        setProfileData({
+          name: userData.name || '',
+          email: userData.email || '',
+          phoneNumber: userData.phoneNumber || '',
+          street: defaultAddress?.street || '',
+          city: defaultAddress?.city || '',
+          state: defaultAddress?.state || '',
+          pincode: defaultAddress?.pincode || '',
+          country: defaultAddress?.country || 'India',
+          profileImage: userData.profileImage || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -82,6 +120,9 @@ const Profile = () => {
 
       // Fetch payment methods
       fetchPaymentMethods();
+      
+      // Refresh user data to ensure we have the latest phone number
+      refreshUserData();
     }
   }, [user]);
 
@@ -127,6 +168,78 @@ const Profile = () => {
       ...prev,
       isDefault: e.target.checked
     }));
+  };
+
+  // Profile image handling functions
+  const handleProfileMenuOpen = (event) => {
+    setProfileMenuAnchor(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setProfileMenuAnchor(null);
+  };
+
+  const handleImageUpload = () => {
+    fileInputRef.current?.click();
+    handleProfileMenuClose();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPEG, PNG, or GIF)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    setImageLoading(true);
+    try {
+      const response = await uploadProfileImage(file);
+      if (response?.user?.profileImage) {
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: response.user.profileImage
+        }));
+        toast.success('Profile picture updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      toast.error('Failed to upload profile picture');
+    } finally {
+      setImageLoading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteProfileImage = async () => {
+    setImageLoading(true);
+    try {
+      const response = await deleteProfileImage();
+      setProfileData(prev => ({
+        ...prev,
+        profileImage: ''
+      }));
+      toast.success('Profile picture removed successfully!');
+    } catch (error) {
+      console.error('Error deleting profile image:', error);
+      toast.error('Failed to remove profile picture');
+    } finally {
+      setImageLoading(false);
+      handleProfileMenuClose();
+    }
   };
 
   const validateProfileData = () => {
@@ -251,6 +364,10 @@ const Profile = () => {
       
       try {
         await updateProfile(dataToSend);
+        
+        // Refresh user data from server to ensure we have the latest data
+        await refreshUserData();
+        
         // Only set success here if updateProfile doesn't throw an error
         setSuccess('Profile updated successfully!');
         toast.success('Profile updated successfully');
@@ -362,25 +479,99 @@ const Profile = () => {
               Profile
             </Typography>
             
-            <Avatar
-              src={profileData.profileImage || 'https://i.imgur.com/3tVgsra.png'}
-              alt={profileData.name}
-              sx={{ 
-                width: 100, 
-                height: 100, 
-                bgcolor: 'background.paper',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                mb: 2
-              }}
-              imgProps={{
-                onError: (e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://i.imgur.com/3tVgsra.png';
+            <Box sx={{ position: 'relative', display: 'inline-block' }}>
+              <Avatar
+                src={getImageUrl(profileData.profileImage)}
+                alt={profileData.name}
+                sx={{ 
+                  width: 100, 
+                  height: 100, 
+                  bgcolor: 'background.paper',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  mb: 2,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'scale(1.05)',
+                    border: '2px solid rgba(255, 255, 255, 0.3)'
+                  }
+                }}
+                onClick={handleProfileMenuOpen}
+                imgProps={{
+                  onError: (e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://i.imgur.com/3tVgsra.png';
+                  }
+                }}
+              >
+                {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+              </Avatar>
+              
+              {/* Camera icon overlay */}
+              <IconButton
+                onClick={handleProfileMenuOpen}
+                sx={{
+                  position: 'absolute',
+                  bottom: 8,
+                  right: -8,
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  color: '#000',
+                  width: 32,
+                  height: 32,
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 1)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+                disabled={imageLoading}
+              >
+                {imageLoading ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <PhotoCameraIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Box>
+            
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              style={{ display: 'none' }}
+            />
+            
+            {/* Profile picture menu */}
+            <Menu
+              anchorEl={profileMenuAnchor}
+              open={Boolean(profileMenuAnchor)}
+              onClose={handleProfileMenuClose}
+              PaperProps={{
+                sx: {
+                  backgroundColor: '#1a1a1a',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '10px',
+                  mt: 1
                 }
               }}
             >
-              {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
-            </Avatar>
+              <MenuItem onClick={handleImageUpload} disabled={imageLoading}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" sx={{ color: '#fff' }} />
+                </ListItemIcon>
+                <ListItemText primary="Change Picture" />
+              </MenuItem>
+              {profileData.profileImage && !profileData.profileImage.includes('3tVgsra.png') && (
+                <MenuItem onClick={handleDeleteProfileImage} disabled={imageLoading}>
+                  <ListItemIcon>
+                    <DeleteForeverIcon fontSize="small" sx={{ color: '#ff4444' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="Remove Picture" sx={{ color: '#ff4444' }} />
+                </MenuItem>
+              )}
+            </Menu>
             
             <Typography variant="h5" sx={{ 
               fontWeight: 400,

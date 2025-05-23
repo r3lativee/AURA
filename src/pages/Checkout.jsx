@@ -37,6 +37,9 @@ const Checkout = () => {
   const [savedPaymentMethods, setSavedPaymentMethods] = useState([]);
   const [useExistingCard, setUseExistingCard] = useState(false);
   
+  // Extract cart items array safely
+  const cartItems = Array.isArray(cart) ? cart : (cart?.items || []);
+  
   // Check if user is authenticated
   useEffect(() => {
     if (!isAuthenticated) {
@@ -196,56 +199,8 @@ const Checkout = () => {
   const handlePaymentSubmit = (e) => {
     e.preventDefault();
     
-    if (useExistingCard && savedPaymentMethods.length > 0) {
-      // When using existing card, just validate CVV
-      if (!paymentData.cvv) {
-        toast.error('Please enter the card CVV');
-        return;
-      }
-      
-      // Validate CVV
-      const cvvRegex = /^\d{3,4}$/;
-      if (!cvvRegex.test(paymentData.cvv)) {
-        toast.error('Please enter a valid CVV (3-4 digits)');
-        return;
-      }
-      
-      handleNext();
-      return;
-    }
-    
-    // Validate all payment fields for new card
-    if (!paymentData.cardName || !paymentData.cardNumber || !paymentData.expDate || !paymentData.cvv) {
-      toast.error('Please fill all payment details');
-      return;
-    }
-    
-    // Validate card number
-    const cardNumberRegex = /^\d{16}$/;
-    if (!cardNumberRegex.test(paymentData.cardNumber.replace(/\s/g, ''))) {
-      toast.error('Please enter a valid 16-digit card number');
-      return;
-    }
-    
-    // Validate expiry date
-    const expDateRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
-    if (!expDateRegex.test(paymentData.expDate)) {
-      toast.error('Please enter a valid expiry date (MM/YY)');
-      return;
-    }
-    
-    // Validate CVV
-    const cvvRegex = /^\d{3,4}$/;
-    if (!cvvRegex.test(paymentData.cvv)) {
-      toast.error('Please enter a valid CVV (3-4 digits)');
-      return;
-    }
-    
-    // Save payment method if requested
-    if (paymentData.saveCard) {
-      savePaymentMethod();
-    }
-    
+    // Set payment method to Razorpay
+    updatePaymentData('method', 'Razorpay');
     handleNext();
   };
   
@@ -276,8 +231,30 @@ const Checkout = () => {
 
   const handleOrderSubmit = async () => {
     try {
-      // Prepare shipping address from selected or entered data
-      const shippingAddress = shippingData.useExistingAddress && user?.addresses?.length > 0
+      // Show loading toast
+      toast.loading('Initializing payment...', { id: 'payment-loading' });
+
+      // Check if cart is empty
+      if (cartItems.length === 0) {
+        toast.error('Your cart is empty!');
+        toast.dismiss('payment-loading');
+        return;
+      }
+
+      // Format items for the order
+      const orderItems = cartItems.map(item => {
+        console.log('Cart item being processed:', item); // Debug item data
+        return {
+          productId: item.productId || item._id,
+          name: item.name || 'Product', // Ensure name exists
+          price: item.price || 0,
+          quantity: item.quantity || 1,
+          size: item.selectedSize || null
+        };
+      });
+
+      // Format shipping address
+      const formattedAddress = shippingData.useExistingAddress && user?.addresses?.length > 0
         ? user.addresses[shippingData.selectedAddressIndex]
         : {
             street: shippingData.street,
@@ -287,43 +264,149 @@ const Checkout = () => {
             country: shippingData.country
           };
       
-      // Extract cart items array safely
-      const cartItems = Array.isArray(cart) ? cart : (cart?.items || []);
-      
-      // Create order object
-      const orderData = {
-        items: cartItems.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          size: item.selectedSize || null,
-        })),
-        shippingAddress,
-        totalAmount: total,
-        paymentMethod: 'Credit Card',
-        paymentDetails: {
-          cardName: paymentData.cardName,
-          cardNumber: `**** **** **** ${paymentData.cardNumber.slice(-4)}`,
-          expDate: paymentData.expDate
+      // Step 1: Create Razorpay order
+      console.log('Creating Razorpay order with amount:', Math.round(total * 100));
+      try {
+        const razorpayResponse = await ordersAPI.createRazorpayOrder(
+          Math.round(total * 100) // Convert to smallest currency unit (paise)
+        );
+        
+        if (!razorpayResponse.data || !razorpayResponse.data.id) {
+          toast.error('Failed to create payment order');
+          toast.dismiss('payment-loading');
+          return;
+        }
+        
+        const razorpayOrderId = razorpayResponse.data.id;
+        
+        // Dismiss loading toast
+        toast.dismiss('payment-loading');
+        
+        // Check if Razorpay is loaded
+        if (!window.Razorpay) {
+          toast.error('Payment gateway not loaded. Please refresh the page and try again.');
+          return;
+        }
+        
+        // Step 2: Configure Razorpay checkout options
+        const options = {
+          key: 'rzp_test_VSdThjRMT7Nf1w', // Your Key ID from Razorpay
+          amount: Math.round(total * 100), // Amount in smallest currency unit
+          currency: 'INR',
+          name: 'AURA',
+          description: 'Purchase from AURA',
+          order_id: razorpayOrderId,
+          handler: async function(response) {
+            try {
+              // Show processing toast
+              toast.loading('Processing your payment...', { id: 'verify-payment' });
+              
+              // Prepare order data to send with verification
+              const orderData = {
+                user: user._id,
+                items: cartItems.map(item => ({
+                  productId: item.product._id,
+                  name: item.product.name,
+                  price: item.product.price,
+                  quantity: item.quantity,
+                  size: item.size,
+                  color: item.color
+                })),
+                shippingAddress: {
+                  street: `${formattedAddress.street} ${formattedAddress.street2 || ''}`.trim(),
+                  city: formattedAddress.city,
+                  state: formattedAddress.state,
+                  pincode: formattedAddress.pincode,
+                  country: formattedAddress.country
+                },
+                totalAmount: total
+              };
+              
+              // Step 4: Verify payment and create order in our system
+              // Verify the payment
+              const verifyResponse = await ordersAPI.verifyRazorpayPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderData: orderData // Send order data with verification
+              });
+              
+              if (!verifyResponse.data || !verifyResponse.data.success) {
+                toast.error('Payment verification failed');
+                toast.dismiss('verify-payment');
+                return;
+              }
+              
+              // Order created on server side during verification
+              const orderId = verifyResponse.data.orderId;
+              
+              // Clear cart
+              await clearCart();
+              
+              // Show success message
+              toast.dismiss('verify-payment');
+              toast.success('Payment successful! Order placed.');
+              
+              // Redirect to order confirmation
+              navigate('/orders');
+            } catch (error) {
+              console.error('Payment processing error:', error);
+              toast.dismiss('verify-payment');
+              toast.error('Payment processing failed. Please try again.');
+            }
+          },
+          modal: {
+            ondismiss: function() {
+              console.log('Payment modal dismissed');
+              toast.error('Payment cancelled');
+            }
+          },
+          prefill: {
+            name: user?.name || '',
+            email: user?.email || '',
+            contact: shippingData.phoneNumber || user?.phoneNumber || ''
+          },
+          notes: {
+            address: `${formattedAddress.street}, ${formattedAddress.city}, ${formattedAddress.state}`
+          },
+          theme: {
+            color: '#3a3a3a'
+          }
+        };
+        
+        // Step 3: Open Razorpay checkout
+        const razorpayInstance = new window.Razorpay(options);
+        razorpayInstance.open();
+      } catch (paymentError) {
+        toast.dismiss('payment-loading');
+        console.error('Payment gateway error:', paymentError);
+        toast.error('Payment gateway error. Please try again later.');
+      }
+    } catch (error) {
+      toast.dismiss('payment-loading');
+      console.error('Checkout error:', error);
+      toast.error(error.message || 'Failed to process checkout');
+    }
+  };
+
+  // Function to save a new address to the user's profile
+  const saveNewAddress = async () => {
+    try {
+      const addressData = {
+        address: {
+          street: shippingData.street,
+          city: shippingData.city,
+          state: shippingData.state,
+          pincode: shippingData.pincode,
+          country: shippingData.country,
+          isDefault: user?.addresses?.length === 0 // Make default if first address
         }
       };
       
-      console.log('Submitting order with data:', JSON.stringify(orderData));
-      
-      // Make API call to create order
-      const response = await ordersAPI.create(orderData);
-      
-      if (response.data && response.data.success) {
-        toast.success('Order placed successfully!');
-        clearCart();
-        handleNext();
-      } else {
-        toast.error('Failed to place order. Please try again.');
-      }
+      await updateProfile(addressData);
     } catch (error) {
-      console.error('Order submission failed:', error);
-      toast.error(error.response?.data?.message || 'Failed to place order. Please try again.');
+      console.error('Failed to save address:', error);
+      // Don't throw the error so order completion isn't affected
     }
   };
 
@@ -341,6 +424,38 @@ const Checkout = () => {
       ...prev,
       [field]: value
     }));
+  }, []);
+
+  // Load Razorpay script
+  useEffect(() => {
+    const loadRazorpayScript = () => {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => {
+          resolve(true);
+        };
+        script.onerror = () => {
+          resolve(false);
+        };
+        document.body.appendChild(script);
+      });
+    };
+
+    const loadScript = async () => {
+      if (window.Razorpay) {
+        return true;
+      }
+      const res = await loadRazorpayScript();
+      if (!res) {
+        console.error('Razorpay script failed to load');
+        toast.error('Payment gateway failed to load. Please refresh the page and try again.');
+      }
+      return res;
+    };
+
+    loadScript();
   }, []);
 
   const ShippingForm = () => (
@@ -500,132 +615,41 @@ const Checkout = () => {
         Payment method
       </Typography>
       <Grid container spacing={3}>
-        {savedPaymentMethods.length > 0 && (
-          <Grid item xs={12}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={useExistingCard}
-                  onChange={(e) => setUseExistingCard(e.target.checked)}
-                  color="primary"
-                />
-              }
-              label="Use saved payment method"
-            />
-            
-            {useExistingCard && (
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <InputLabel>Select Card</InputLabel>
-                <Select
-                  value={paymentData.selectedCardIndex || 0}
-                  onChange={(e) => {
-                    const index = e.target.value;
-                    const selectedCard = savedPaymentMethods[index];
-                    updatePaymentData('selectedCardIndex', index);
-                    updatePaymentData('cardName', selectedCard.cardName);
-                    updatePaymentData('cardNumber', selectedCard.cardNumber.slice(-4)); // We only have last 4 digits
-                    updatePaymentData('expDate', selectedCard.expiryDate);
-                    updatePaymentData('cvv', ''); // User needs to re-enter CVV for security
-                  }}
-                  label="Select Card"
-                >
-                  {savedPaymentMethods.map((card, index) => (
-                    <MenuItem key={index} value={index}>
-                      {card.cardNumber} - {card.cardName}
-                      {card.isDefault ? ' (Default)' : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          </Grid>
-        )}
-        
-        {(!useExistingCard || savedPaymentMethods.length === 0) && (
-          <>
-            <Grid item xs={12}>
-              <InputWithFocusLock
-                required
-                id="cardName"
-                name="cardName"
-                label="Name on card"
-                fullWidth
-                value={paymentData.cardName}
-                onChange={(e) => updatePaymentData('cardName', e.target.value)}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <InputWithFocusLock
-                required
-                id="cardNumber"
-                name="cardNumber"
-                label="Card number"
-                fullWidth
-                value={paymentData.cardNumber}
-                onChange={(e) => updatePaymentData('cardNumber', e.target.value)}
-                helperText="16-digit number without spaces"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <InputWithFocusLock
-                required
-                id="expDate"
-                name="expDate"
-                label="Expiry date"
-                fullWidth
-                value={paymentData.expDate}
-                onChange={(e) => updatePaymentData('expDate', e.target.value)}
-                helperText="MM/YY"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <InputWithFocusLock
-                required
-                id="cvv"
-                name="cvv"
-                label="CVV"
-                fullWidth
-                value={paymentData.cvv}
-                onChange={(e) => updatePaymentData('cvv', e.target.value)}
-                helperText="Last 3 or 4 digits on back of card"
-              />
-            </Grid>
-          </>
-        )}
-        
-        {useExistingCard && (
-          <Grid item xs={12}>
-            <InputWithFocusLock
-              required
-              id="cvv"
-              name="cvv"
-              label="CVV"
-              fullWidth
-              value={paymentData.cvv}
-              onChange={(e) => updatePaymentData('cvv', e.target.value)}
-              helperText="Please re-enter CVV for security"
-            />
-          </Grid>
-        )}
-        
         <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                color="primary"
-                checked={paymentData.saveCard}
-                onChange={(e) => updatePaymentData('saveCard', e.target.checked)}
+          <Box sx={{ 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            borderRadius: 2, 
+            p: 3, 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 2,
+            cursor: 'pointer',
+            '&:hover': { borderColor: 'primary.main' }
+          }}
+          onClick={() => {
+            updatePaymentData('method', 'Razorpay');
+            // Automatically proceed to next step when Razorpay is selected
+            handleNext();
+          }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box 
+                component="img" 
+                src="https://razorpay.com/favicon.png" 
+                alt="Razorpay logo"
+                sx={{ width: 30, mr: 2 }}
               />
-            }
-            label="Remember credit card details for next time"
-          />
+              <Typography variant="body1">Razorpay</Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Pay securely via Razorpay
+            </Typography>
+          </Box>
         </Grid>
       </Grid>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
         <Button onClick={handleBack}>Back</Button>
-        <Button variant="contained" color="primary" type="submit">
-          Next
-        </Button>
       </Box>
     </form>
   );
@@ -641,10 +665,12 @@ const Checkout = () => {
           country: shippingData.country
         };
         
-    // Extract cart items array safely
-    const cartItems = Array.isArray(cart) ? cart : (cart?.items || []);
-    console.log("Cart type:", typeof cart, Array.isArray(cart) ? "is array" : "not array", 
-                "Items count:", cartItems.length);
+    // Trigger Razorpay payment when review page is shown
+    useEffect(() => {
+      if (cartItems.length > 0) {
+        handleOrderSubmit();
+      }
+    }, []);
         
     return (
       <>
@@ -675,16 +701,10 @@ const Checkout = () => {
         <Divider sx={{ my: 2 }} />
         
         <Typography variant="subtitle1" fontWeight="bold">
-          Payment Details
+          Payment Method
         </Typography>
         <Typography variant="body1">
-          Card Holder: {paymentData.cardName}
-        </Typography>
-        <Typography variant="body1">
-          Card Number: **** **** **** {paymentData.cardNumber.slice(-4)}
-        </Typography>
-        <Typography variant="body1">
-          Expiry Date: {paymentData.expDate}
+          Razorpay
         </Typography>
         
         <Divider sx={{ my: 2 }} />
@@ -729,9 +749,14 @@ const Checkout = () => {
             onClick={handleOrderSubmit}
             disabled={cartItems.length === 0}
           >
-            Place Order
+            Proceed to Payment
           </Button>
         </Box>
+        {cartItems.length === 0 && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Please add items to your cart before proceeding to payment.
+          </Alert>
+        )}
       </>
     );
   };

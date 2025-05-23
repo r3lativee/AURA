@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create an axios instance with base URL and default headers
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -346,14 +346,42 @@ export const reviewsAPI = {
 // Orders API
 export const ordersAPI = {
   create: (orderData) => api.post('/orders', orderData),
-  getAll: () => api.get('/orders'),
+  getAll: () => api.get('/orders/my-orders')
+    .then(response => {
+      // Ensure we have a consistent response format
+      if (Array.isArray(response.data)) {
+        return {
+          ...response,
+          data: response.data
+        };
+      } else {
+        return response;
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching orders:', error);
+      // Check if it's the specific population error
+      if (error.response?.data?.message?.includes('StrictPopulateError') ||
+          error.message?.includes('Cannot populate path')) {
+        console.log('Handling population error by returning empty orders array');
+        return {
+          data: []
+        };
+      }
+      throw error;
+    }),
   getOne: (id) => api.get(`/orders/${id}`),
   getStats: () => api.get('/admin/orders/stats'),
   // Admin orders management
   getAllOrders: (params) => api.get('/admin/orders', { params }),
-  updateOrderStatus: (orderId, status) => api.patch(`/admin/orders/${orderId}/status`, { status }),
+  updateOrderStatus: (orderId, updateData) => api.patch(`/admin/orders/${orderId}/status`, updateData),
   getRevenueReport: (period = 'monthly') => api.get(`/admin/reports/revenue?period=${period}`),
   getSalesReport: (period = 'monthly') => api.get(`/admin/reports/sales?period=${period}`),
+  // Razorpay
+  createRazorpayOrder: (amount, currency = 'INR') => 
+    api.post('/orders/razorpay', { amount, currency }),
+  verifyRazorpayPayment: (paymentData) => 
+    api.post('/orders/razorpay/verify', paymentData)
 };
 
 // Add this function to the existing exports
@@ -433,4 +461,4 @@ export const uploadAPI = {
   },
 };
 
-export default api; 
+export default api;

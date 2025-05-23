@@ -13,7 +13,7 @@ import Favorites from './pages/Favorites';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ToastOverlay from './components/ToastOverlay';
-import { SmoothCursor } from './components/magicui/smooth-cursor';
+// Custom cursor removed as requested
 import { CartProvider } from './context/CartContext';
 import './styles/globals.css';
 import './styles/formFix.css';
@@ -170,8 +170,7 @@ function App() {
             display: 'flex',
             flexDirection: 'column'
           }}>
-            {/* Custom smooth cursor for all pages */}
-            <SmoothCursor />
+            {/* Custom cursor removed */}
             
             {!isAdminRoute && <Navbar />}
             <ToastOverlay />

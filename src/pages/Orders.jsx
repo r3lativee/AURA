@@ -16,6 +16,7 @@ import {
   Grid,
   Button,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   KeyboardArrowDown as ExpandMoreIcon,
@@ -23,23 +24,63 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { ordersAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    
     fetchOrders();
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const { data } = await ordersAPI.getAll();
-      setOrders(data);
+      setError(null);
+      
+      // Use the my-orders endpoint to get the current user's orders
+      const response = await ordersAPI.getAll();
+      
+      // Handle different response formats - my-orders returns an array directly
+      const ordersList = Array.isArray(response.data) ? response.data : [];
+      
+      console.log('Raw orders data:', ordersList);
+      
+      // Process orders to handle potential missing product data
+      const processedOrders = ordersList.map(order => ({
+        ...order,
+        // Make sure totalAmount is available (some orders might use "total" instead)
+        totalAmount: order.totalAmount || order.total || 0,
+        // Make sure all necessary arrays and objects are available
+        items: Array.isArray(order.items) ? order.items.map(item => ({
+          ...item,
+          // Handle both product and productId references
+          product: item.product || item.productId || { 
+            name: item.name || 'Unknown Product', 
+            price: item.price || 0 
+          }
+        })) : [],
+        // Ensure shipping address is properly formatted
+        shippingAddress: order.shippingAddress || {}
+      }));
+      
+      console.log('Fetched user orders:', processedOrders);
+      setOrders(processedOrders);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
+      setError('Failed to load your orders. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -51,10 +92,13 @@ const Orders = () => {
       fetchOrders(); // Refresh orders list
     } catch (error) {
       console.error('Failed to cancel order:', error);
+      setError('Failed to cancel order. Please try again.');
     }
   };
 
   const getStatusColor = (status) => {
+    if (!status) return '#e0e0e0';
+    
     switch (status.toLowerCase()) {
       case 'pending':
         return '#ffd54f';
@@ -72,11 +116,22 @@ const Orders = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    if (amount === undefined || amount === null) return '$0.00';
+    return '$' + Number(amount).toFixed(2);
   };
 
   // Animation variants
@@ -133,8 +188,14 @@ const Orders = () => {
             mb: 3
           }}
         >
-          Orders
+          Your Orders
         </Typography>
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
         {orders.length === 0 ? (
           <Paper 
@@ -158,7 +219,7 @@ const Orders = () => {
             </Typography>
             <Button
               variant="contained"
-              href="/shop"
+              href="/products"
               sx={{
                 padding: '10px 20px',
                 textTransform: 'none',
@@ -192,6 +253,7 @@ const Orders = () => {
                   <TableCell sx={{ py: 1.8, color: 'rgba(255, 255, 255, 0.5)', fontWeight: 300, borderBottom: 'none' }}>Date</TableCell>
                   <TableCell sx={{ py: 1.8, color: 'rgba(255, 255, 255, 0.5)', fontWeight: 300, borderBottom: 'none' }}>Total</TableCell>
                   <TableCell sx={{ py: 1.8, color: 'rgba(255, 255, 255, 0.5)', fontWeight: 300, borderBottom: 'none' }}>Status</TableCell>
+                  <TableCell sx={{ py: 1.8, color: 'rgba(255, 255, 255, 0.5)', fontWeight: 300, borderBottom: 'none' }}>Payment</TableCell>
                   <TableCell sx={{ py: 1.8, color: 'rgba(255, 255, 255, 0.5)', fontWeight: 300, borderBottom: 'none' }} align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -241,7 +303,7 @@ const Orders = () => {
                           borderBottom: 'none'
                         }}
                       >
-                        {order._id.substring(0, 8)}...
+                        {order._id?.substring(0, 8)}...
                       </TableCell>
                       <TableCell 
                         sx={{ 
@@ -263,7 +325,7 @@ const Orders = () => {
                           borderBottom: 'none'
                         }}
                       >
-                        ${order.total.toFixed(2)}
+                        {formatCurrency(order.totalAmount)}
                       </TableCell>
                       <TableCell sx={{ py: 2, borderBottom: 'none' }}>
                         <Box
@@ -279,7 +341,24 @@ const Orders = () => {
                             border: `1px solid ${getStatusColor(order.status)}`,
                           }}
                         >
-                          {order.status}
+                          {order.status || 'Pending'}
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ py: 2, borderBottom: 'none' }}>
+                        <Box
+                          sx={{
+                            display: 'inline-block',
+                            px: 1.2,
+                            py: 0.5,
+                            borderRadius: '20px',
+                            fontSize: '0.8rem',
+                            fontWeight: 300,
+                            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                            color: order.isPaid ? '#a5d6a7' : '#ffd54f',
+                            border: `1px solid ${order.isPaid ? '#a5d6a7' : '#ffd54f'}`,
+                          }}
+                        >
+                          {order.isPaid ? 'Paid' : (order.paymentStatus || 'Pending')}
                         </Box>
                       </TableCell>
                       <TableCell sx={{ py: 2, borderBottom: 'none' }} align="right">
@@ -308,7 +387,7 @@ const Orders = () => {
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expandedOrder === order._id ? '1px solid rgba(255, 255, 255, 0.05)' : 'none' }} colSpan={6}>
+                      <TableCell style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expandedOrder === order._id ? '1px solid rgba(255, 255, 255, 0.05)' : 'none' }} colSpan={7}>
                         <Collapse in={expandedOrder === order._id} timeout="auto" unmountOnExit>
                           <Box sx={{ margin: 2, pt: 1, pb: 2 }}>
                             <Typography 
@@ -347,13 +426,10 @@ const Orders = () => {
                                     lineHeight: 1.6
                                   }}
                                 >
-                                  {order.shippingAddress.name}<br />
-                                  {order.shippingAddress.address1}<br />
-                                  {order.shippingAddress.address2 && (
-                                    <>{order.shippingAddress.address2}<br /></>
-                                  )}
-                                  {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}<br />
-                                  {order.shippingAddress.country}
+                                  {order.shippingAddress.name || user?.name || 'N/A'}<br />
+                                  {order.shippingAddress.street || 'N/A'}<br />
+                                  {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode}<br />
+                                  {order.shippingAddress.country || 'N/A'}
                                 </Typography>
                               </Grid>
                               <Grid item xs={12} md={6}>
@@ -379,8 +455,9 @@ const Orders = () => {
                                     lineHeight: 1.6
                                   }}
                                 >
-                                  Method: {order.paymentMethod}<br />
-                                  Status: {order.paymentStatus}
+                                  Method: {order.paymentMethod || 'N/A'}<br />
+                                  Status: {order.isPaid ? 'Paid' : (order.paymentStatus || 'Pending')}<br />
+                                  {order.paidAt && `Paid on: ${formatDate(order.paidAt)}`}
                                 </Typography>
                               </Grid>
                             </Grid>
@@ -415,17 +492,19 @@ const Orders = () => {
                                 </TableRow>
                               </TableHead>
                               <TableBody>
-                                {order.items.map((item) => (
-                                  <TableRow key={item._id}>
-                                    <TableCell sx={{ color: '#fff', fontWeight: 300, fontSize: '0.85rem' }}>{item.product.name}</TableCell>
+                                {order.items && order.items.map((item) => (
+                                  <TableRow key={item._id || `${order._id}-${item.productId || Math.random()}`}>
+                                    <TableCell sx={{ color: '#fff', fontWeight: 300, fontSize: '0.85rem' }}>
+                                      {item.product?.name || item.name || 'Unknown Product'}
+                                    </TableCell>
                                     <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 300, fontSize: '0.85rem' }}>{item.size || '-'}</TableCell>
                                     <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 300, fontSize: '0.85rem' }}>{item.color || '-'}</TableCell>
-                                    <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 300, fontSize: '0.85rem' }} align="right">{item.quantity}</TableCell>
+                                    <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 300, fontSize: '0.85rem' }} align="right">{item.quantity || 1}</TableCell>
                                     <TableCell sx={{ color: 'rgba(255, 255, 255, 0.7)', fontWeight: 300, fontSize: '0.85rem' }} align="right">
-                                      ${item.product.price.toFixed(2)}
+                                      {formatCurrency(item.product?.price || item.price || 0)}
                                     </TableCell>
                                     <TableCell sx={{ color: '#fff', fontWeight: 300, fontSize: '0.85rem' }} align="right">
-                                      ${(item.product.price * item.quantity).toFixed(2)}
+                                      {formatCurrency((item.product?.price || item.price || 0) * (item.quantity || 1))}
                                     </TableCell>
                                   </TableRow>
                                 ))}
@@ -449,10 +528,10 @@ const Orders = () => {
                                     border: 'none',
                                     pt: 2
                                   }}>
-                                    ${order.subtotal.toFixed(2)}<br />
-                                    ${order.shippingCost.toFixed(2)}<br />
+                                    {formatCurrency(order.subtotal || order.totalAmount || 0)}<br />
+                                    {formatCurrency(order.shippingCost || 0)}<br />
                                     <Box sx={{ color: '#fff', fontWeight: 400, mt: 1 }}>
-                                      ${order.total.toFixed(2)}
+                                      {formatCurrency(order.totalAmount || order.total || 0)}
                                     </Box>
                                   </TableCell>
                                 </TableRow>
